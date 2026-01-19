@@ -1,0 +1,694 @@
+/* Markdown Nice Themes Collection */
+
+/* ==========================================================================
+   Common Resets & Base Styles
+   ========================================================================== */
+.markdown-theme-container {
+  width: 100%;
+  overflow-wrap: break-word;
+}
+
+/* 14. Images */
+.markdown-theme-container img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1.5em auto;
+}
+
+/* 15. Tables - Base */
+.markdown-theme-container table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.5em 0;
+  font-size: 0.9em;
+}
+
+.markdown-theme-container th,
+.markdown-theme-container td {
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+}
+
+/* 7. Code Blocks - Base */
+.markdown-theme-container pre {
+  padding: 16px;
+  border-radius: 6px;
+  overflow: auto;
+  margin: 1.5em 0;
+  line-height: 1.5;
+  background-color: #f6f8fa;
+  border: 1px solid #d0d7de;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+}
+
+.markdown-theme-container pre code {
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+  color: #24292f;
+  border: none;
+  font-family: inherit;
+}
+
+/* 6. Inline Code - Base */
+.markdown-theme-container code {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  background-color: rgba(175, 184, 193, 0.2);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  color: #24292f;
+}
+
+/* ==========================================================================
+   Layout Style: Classic (WeChat / Standard)
+   ========================================================================== */
+.md-style-classic {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #333;
+  font-size: 16px;
+}
+
+/* 1. Headers */
+.md-style-classic h1 {
+  font-size: 1.8em;
+  border-bottom: 2px solid var(--md-primary-color);
+  color: var(--md-primary-color);
+  padding-bottom: 10px;
+  margin: 40px 0 20px;
+  text-align: center;
+}
+
+.md-style-classic h2 {
+  font-size: 1.5em;
+  border-left: 4px solid var(--md-primary-color);
+  padding-left: 10px;
+  margin: 30px 0 20px;
+  color: #333;
+  background: linear-gradient(to right, var(--md-primary-bg-color), transparent);
+}
+
+.md-style-classic h3 {
+  font-size: 1.3em;
+  color: var(--md-primary-color);
+  margin: 25px 0 15px;
+  padding-left: 8px;
+  border-left: 2px solid var(--md-primary-color);
+}
+
+.md-style-classic h4 {
+  font-size: 1.1em;
+  font-weight: bold;
+  color: #444;
+  margin: 20px 0 10px;
+}
+
+.md-style-classic h5 {
+  font-size: 1em;
+  font-weight: bold;
+  color: #555;
+  margin: 15px 0 5px;
+}
+
+.md-style-classic h6 {
+  font-size: 1em;
+  color: #666;
+  text-decoration: underline;
+  margin: 15px 0 5px;
+}
+
+/* 2-5. Inline Text Styles */
+.md-style-classic strong {
+  color: var(--md-primary-color);
+  font-weight: bold;
+}
+
+.md-style-classic em {
+  font-style: italic;
+  color: #666;
+}
+
+.md-style-classic strong em {
+  color: var(--md-primary-color);
+  border-bottom: 1px solid var(--md-primary-color);
+}
+
+.md-style-classic del {
+  color: #999;
+}
+
+/* 6. Inline Code */
+/* Inherit from Base */
+
+/* 7. Code Blocks */
+/* Inherit from Base */
+
+/* 8-10. Lists */
+.md-style-classic ul, .md-style-classic ol {
+  padding-left: 2em;
+  margin-bottom: 1.5em;
+}
+
+.md-style-classic ul li {
+  list-style-type: disc;
+}
+
+.md-style-classic ol li {
+  list-style-type: decimal;
+}
+
+/* 11-12. Blockquotes */
+.md-style-classic blockquote {
+  border-left: 4px solid var(--md-primary-color);
+  background-color: var(--md-primary-bg-color);
+  color: #555;
+  padding: 15px;
+  margin: 20px 0;
+  border-radius: 0 4px 4px 0;
+}
+
+.md-style-classic blockquote blockquote {
+  background-color: transparent;
+  border-left: 3px solid #ccc;
+  margin: 10px 0;
+  padding-left: 10px;
+}
+
+/* 13 & 17. Links */
+.md-style-classic a {
+  color: var(--md-primary-color);
+  text-decoration: none;
+  border-bottom: 1px solid var(--md-primary-color);
+  transition: opacity 0.2s;
+}
+
+.md-style-classic a:hover {
+  opacity: 0.8;
+}
+
+/* 14. Images */
+.md-style-classic img {
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* 15. Tables */
+.md-style-classic th {
+  background-color: var(--md-primary-bg-color);
+  color: var(--md-primary-color);
+}
+
+.md-style-classic tr:nth-child(2n) {
+  background-color: #f8f8f8;
+}
+
+/* 16. HR */
+.md-style-classic hr {
+  border: 0;
+  border-top: 1px dashed var(--md-primary-color);
+  margin: 40px 0;
+}
+
+
+/* ==========================================================================
+   Layout Style: Elegant (Minimalist / Serif)
+   ========================================================================== */
+.md-style-elegant {
+  font-family: "Georgia", "Times New Roman", serif;
+  color: #333;
+  line-height: 1.9;
+  font-size: 16px;
+}
+
+/* 1. Headers */
+.md-style-elegant h1 {
+  font-size: 2em;
+  text-align: center;
+  color: var(--md-primary-color);
+  margin: 50px 0 30px;
+  font-weight: normal;
+  letter-spacing: 2px;
+}
+
+.md-style-elegant h2 {
+  font-size: 1.5em;
+  text-align: center;
+  color: #333;
+  border-bottom: 1px solid var(--md-primary-color);
+  padding-bottom: 15px;
+  margin: 40px 0 25px;
+  display: table;
+  margin-left: auto;
+  margin-right: auto;
+  font-weight: normal;
+}
+
+.md-style-elegant h3 {
+  font-size: 1.2em;
+  text-align: center;
+  font-weight: bold;
+  margin: 30px 0 15px;
+  color: #555;
+}
+
+.md-style-elegant h4, .md-style-elegant h5, .md-style-elegant h6 {
+  text-align: left;
+  font-weight: bold;
+  color: #666;
+  margin-top: 20px;
+}
+
+/* 2-5. Inline */
+.md-style-elegant strong {
+  color: var(--md-primary-color);
+  font-weight: 600;
+}
+
+.md-style-elegant em {
+  font-family: cursive;
+  color: #666;
+}
+
+.md-style-elegant del {
+  text-decoration-style: double;
+}
+
+/* 6-7. Code */
+/* Inherit from Base */
+
+/* 8-10. Lists */
+.md-style-elegant ul li {
+  list-style-type: square;
+  color: #444;
+}
+
+/* 11-12. Blockquotes */
+.md-style-elegant blockquote {
+  border: none;
+  padding: 20px;
+  margin: 30px 20px;
+  background-color: #fafafa;
+  font-style: italic;
+  text-align: center;
+  position: relative;
+}
+
+.md-style-elegant blockquote::before {
+  content: "“";
+  font-size: 3em;
+  color: var(--md-primary-color);
+  position: absolute;
+  top: -10px;
+  left: 10px;
+  opacity: 0.3;
+}
+
+/* 13. Links */
+.md-style-elegant a {
+  color: var(--md-primary-color);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* 15. Tables */
+.md-style-elegant table {
+  border: none;
+}
+.md-style-elegant th {
+  border: none;
+  border-bottom: 2px solid var(--md-primary-color);
+  text-transform: uppercase;
+  font-size: 0.8em;
+  letter-spacing: 1px;
+}
+.md-style-elegant td {
+  border: none;
+  border-bottom: 1px solid #eee;
+}
+
+/* 16. HR */
+.md-style-elegant hr {
+  border: 0;
+  height: 1px;
+  background-image: linear-gradient(to right, transparent, var(--md-primary-color), transparent);
+  margin: 50px 0;
+}
+
+
+/* ==========================================================================
+   Layout Style: Bubble (Card / Playful)
+   ========================================================================== */
+.md-style-bubble {
+  font-family: "Varela Round", -apple-system, sans-serif;
+  color: #444;
+}
+
+/* 1. Headers */
+.md-style-bubble h1 {
+  background: var(--md-primary-color);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 50px;
+  text-align: center;
+  box-shadow: 0 4px 15px var(--md-primary-bg-color);
+  margin: 40px auto 30px;
+  width: fit-content;
+}
+
+.md-style-bubble h2 {
+  color: var(--md-primary-color);
+  background: var(--md-primary-bg-color);
+  padding: 8px 16px;
+  border-radius: 12px;
+  display: inline-block;
+  margin: 30px 0 15px;
+  box-shadow: 2px 2px 0 var(--md-primary-color);
+}
+
+.md-style-bubble h3 {
+  color: var(--md-primary-color);
+  border-bottom: 3px dotted var(--md-primary-color);
+  display: inline-block;
+  margin: 20px 0 10px;
+  padding-bottom: 4px;
+}
+
+.md-style-bubble h4 {
+  background: #f0f0f0;
+  padding: 4px 12px;
+  border-radius: 15px;
+  display: inline-block;
+  color: #666;
+}
+
+.md-style-bubble h5, .md-style-bubble h6 {
+  color: #888;
+  margin-top: 15px;
+}
+
+/* 2-5. Inline */
+.md-style-bubble strong {
+  background: var(--md-primary-bg-color);
+  color: var(--md-primary-color);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+/* 6-7. Code */
+/* Inherit from Base */
+
+/* 8-10. Lists */
+.md-style-bubble ul li::marker {
+  color: var(--md-primary-color);
+  content: "● ";
+}
+
+/* 11. Blockquote */
+.md-style-bubble blockquote {
+  background: var(--md-primary-bg-color);
+  border: 2px dashed var(--md-primary-color);
+  border-radius: 15px;
+  padding: 20px;
+  margin: 20px 0;
+  color: #555;
+}
+
+/* 13. Links */
+.md-style-bubble a {
+  color: #fff;
+  background-color: var(--md-primary-color);
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 0.9em;
+}
+
+/* 14. Images */
+.md-style-bubble img {
+  border-radius: 15px;
+  border: 4px solid var(--md-primary-bg-color);
+}
+
+/* 15. Tables */
+.md-style-bubble table {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--md-primary-color);
+}
+.md-style-bubble th {
+  background: var(--md-primary-color);
+  color: #fff;
+}
+
+/* 16. HR */
+.md-style-bubble hr {
+  border: 0;
+  text-align: center;
+  height: 20px;
+  margin: 40px 0;
+}
+.md-style-bubble hr::before {
+  content: "•••";
+  color: var(--md-primary-color);
+  font-size: 20px;
+  letter-spacing: 10px;
+}
+
+
+/* ==========================================================================
+   Layout Style: Ribbon (Business / Solid)
+   ========================================================================== */
+.md-style-ribbon {
+  font-family: -apple-system, sans-serif;
+  color: #2c3e50;
+}
+
+/* 1. Headers */
+.md-style-ribbon h1 {
+  background: var(--md-primary-color);
+  color: #fff;
+  padding: 15px 20px;
+  margin: 40px -20px 30px; /* Bleed out */
+  position: relative;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.md-style-ribbon h2 {
+  border-bottom: 2px solid var(--md-primary-color);
+  color: var(--md-primary-color);
+  padding-bottom: 10px;
+  margin: 35px 0 20px;
+  position: relative;
+}
+.md-style-ribbon h2::after {
+  content: "";
+  display: block;
+  width: 50px;
+  height: 4px;
+  background: var(--md-primary-color);
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+}
+
+.md-style-ribbon h3 {
+  border-left: 5px solid var(--md-primary-color);
+  padding-left: 10px;
+  color: #34495e;
+  background: #f4f4f4;
+  padding: 8px 10px;
+  margin: 25px 0 15px;
+}
+
+.md-style-ribbon h4 {
+  color: var(--md-primary-color);
+  font-weight: bold;
+  text-transform: uppercase;
+  margin: 20px 0 10px;
+}
+
+/* 2-5. Inline */
+.md-style-ribbon strong {
+  color: var(--md-primary-color);
+  border-bottom: 2px solid var(--md-primary-bg-color);
+}
+
+/* 6-7. Code */
+/* Inherit from Base */
+
+/* 11. Blockquote */
+.md-style-ribbon blockquote {
+  border-left: 4px solid var(--md-primary-color);
+  background: linear-gradient(to right, var(--md-primary-bg-color), transparent);
+  padding: 15px;
+  color: #555;
+  margin: 20px 0;
+}
+
+/* 13. Links */
+.md-style-ribbon a {
+  color: var(--md-primary-color);
+  font-weight: bold;
+  border-bottom: 2px solid var(--md-primary-bg-color);
+  text-decoration: none;
+}
+.md-style-ribbon a:hover {
+  background-color: var(--md-primary-bg-color);
+}
+
+/* 15. Tables */
+.md-style-ribbon th {
+  background-color: #f4f4f4;
+  border-bottom: 2px solid var(--md-primary-color);
+}
+
+/* 16. HR */
+.md-style-ribbon hr {
+  border: 0;
+  height: 2px;
+  background: #eee;
+  margin: 50px 0;
+  position: relative;
+}
+.md-style-ribbon hr::after {
+  content: "§";
+  position: absolute;
+  left: 50%;
+  top: -12px;
+  background: #fff;
+  padding: 0 10px;
+  color: var(--md-primary-color);
+}
+
+
+/* ==========================================================================
+   Layout Style: Tech (Geek / Terminal)
+   ========================================================================== */
+.md-style-tech {
+  font-family: "SF Mono", "Consolas", "Liberation Mono", "Menlo", monospace;
+  color: #333;
+  counter-reset: h1counter;
+}
+
+/* 1. Headers */
+.md-style-tech h1 {
+  counter-increment: h1counter;
+  counter-reset: h2counter;
+  font-size: 1.6em;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 10px;
+  margin: 40px 0 20px;
+  color: var(--md-primary-color);
+}
+.md-style-tech h1::before {
+  content: "[ " counter(h1counter) " ] ";
+  color: #000;
+  margin-right: 10px;
+}
+
+.md-style-tech h2 {
+  counter-increment: h2counter;
+  counter-reset: h3counter;
+  font-size: 1.4em;
+  margin: 30px 0 20px;
+  color: #444;
+}
+.md-style-tech h2::before {
+  content: counter(h1counter) "." counter(h2counter);
+  background: var(--md-primary-color);
+  color: #fff;
+  padding: 2px 6px;
+  margin-right: 10px;
+  font-size: 0.8em;
+}
+
+.md-style-tech h3 {
+  counter-increment: h3counter;
+  font-size: 1.2em;
+  margin: 25px 0 15px;
+  color: #555;
+}
+.md-style-tech h3::before {
+  content: ">>> ";
+  color: var(--md-primary-color);
+  letter-spacing: -2px;
+  margin-right: 5px;
+}
+
+.md-style-tech h4::before { content: "# "; color: #999; }
+.md-style-tech h5::before { content: "## "; color: #999; }
+.md-style-tech h6::before { content: "### "; color: #999; }
+
+/* 2-5. Inline */
+.md-style-tech strong {
+  color: var(--md-primary-color);
+}
+.md-style-tech del {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+/* 6-7. Code */
+.md-style-tech code {
+  color: #333;
+  background: #e0e0e0;
+  border: 1px solid #ccc;
+  padding: 2px 4px;
+}
+
+.md-style-tech pre {
+  background: #1e1e1e;
+  border: 1px solid #333;
+  color: #0f0; /* Matrix green default text, syntax highlighter will override */
+  border-radius: 0;
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.2);
+}
+
+/* 8-10. Lists */
+.md-style-tech ul li::marker {
+  content: "> ";
+  color: var(--md-primary-color);
+}
+
+/* 11. Blockquote */
+.md-style-tech blockquote {
+  border: 1px dashed var(--md-primary-color);
+  background: #f9f9f9;
+  padding: 15px;
+  margin: 20px 0;
+  font-style: italic;
+}
+
+/* 13. Links */
+.md-style-tech a {
+  color: var(--md-primary-color);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--md-primary-color);
+}
+.md-style-tech a:hover {
+  background: var(--md-primary-color);
+  color: #fff;
+}
+
+/* 15. Tables */
+.md-style-tech table {
+  border: 2px solid #333;
+}
+.md-style-tech th {
+  background: #333;
+  color: #fff;
+  border: 1px solid #555;
+}
+.md-style-tech td {
+  border: 1px solid #333;
+  font-family: monospace;
+}
+
+/* 16. HR */
+.md-style-tech hr {
+  border: 0;
+  border-top: 1px dashed #333;
+  margin: 40px 0;
+}
