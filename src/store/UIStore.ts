@@ -7,8 +7,22 @@ export class UIStore {
   markdownTheme: string = 'default';
   viewMode: ViewMode = 'split';
   isSidebarOpen: boolean = true;
+  sidebarWidth: number = 256; // 默认16rem (256px)
   isLoading: boolean = false;
   isProjectReady: boolean = false;
+
+  // Error dialog state
+  errorDialog: {
+    isOpen: boolean;
+    title: string;
+    message: string;
+    details?: string;
+  } = {
+    isOpen: false,
+    title: '',
+    message: '',
+    details: '',
+  };
 
   constructor() {
     makeAutoObservable(this);
@@ -25,6 +39,7 @@ export class UIStore {
           this.themeColor = res.data!.themeColor;
           this.markdownTheme = res.data!.markdownTheme || 'default';
           this.isProjectReady = !!res.data!.repoPath;
+          this.sidebarWidth = (res.data as any).sidebarWidth || 256;
           this.applyTheme();
         });
       }
@@ -51,6 +66,26 @@ export class UIStore {
 
   toggleSidebar() {
     this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  setSidebarWidth(width: number) {
+    // 限制宽度范围 180px - 600px
+    this.sidebarWidth = Math.max(180, Math.min(600, width));
+    // 保存到配置
+    this.saveConfig({ sidebarWidth: this.sidebarWidth } as any);
+  }
+
+  showErrorDialog(title: string, message: string, details?: string) {
+    this.errorDialog = {
+      isOpen: true,
+      title,
+      message,
+      details,
+    };
+  }
+
+  closeErrorDialog() {
+    this.errorDialog.isOpen = false;
   }
 
   async setThemeMode(mode: ThemeMode) {

@@ -11,15 +11,11 @@ export class RootStore {
   toastStore: ToastStore;
 
   constructor() {
-    this.fileStore = new FileStore();
-    this.uiStore = new UIStore();
     this.toastStore = new ToastStore();
-    // GitStore needs access to ToastStore, so we pass rootStore or just toastStore if we refactor.
-    // But currently stores are independent in constructor.
-    // We can inject dependencies or use a singleton pattern if needed.
-    // For simplicity, let's pass toastStore to GitStore or let GitStore access it via a hack? 
-    // Better: Pass toastStore to GitStore constructor.
-    this.gitStore = new GitStore(this.toastStore);
+    this.uiStore = new UIStore();
+    this.gitStore = new GitStore(this.toastStore, this.uiStore);
+    // Pass gitStore to fileStore for event-driven git status updates
+    this.fileStore = new FileStore(this.toastStore, this.gitStore);
   }
 }
 

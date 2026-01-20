@@ -36,7 +36,8 @@ export interface AppConfig {
   repoPath: string;  // 本地仓库路径 (通常是 userHome/.github-notebook)
   recentProjects: string[]; // 最近打开的项目路径列表
   remoteUrl?: string;
-  
+  sidebarWidth?: number; // 侧边栏宽度
+
   // 安全配置
   encryption: {
     enabled: boolean;

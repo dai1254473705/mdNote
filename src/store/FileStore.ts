@@ -1,5 +1,13 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 import type { FileNode } from '../types';
+import type { ToastStore } from './ToastStore';
+import type { GitStore } from './GitStore';
+
+interface SearchResult {
+  path: string;
+  name: string;
+  matches: string[];
+}
 
 export class FileStore {
   fileTree: FileNode[] = [];
@@ -12,13 +20,63 @@ export class FileStore {
   isAutoSaving: boolean = false;
   unsavedFilePaths: Set<string> = new Set(); // Track files with unsaved changes
   searchQuery: string = '';
+  searchResults: SearchResult[] = []; // Content search results
+  isSearching: boolean = false; // Searching state
 
-  constructor() {
+  private toastStore: ToastStore;
+  private gitStore?: GitStore;
+  private searchTimeout: ReturnType<typeof setTimeout> | null = null; // Debounce timer
+
+  constructor(toastStore: ToastStore, gitStore?: GitStore) {
     makeAutoObservable(this);
+    this.toastStore = toastStore;
+    this.gitStore = gitStore;
   }
 
   setSearchQuery(query: string) {
     this.searchQuery = query;
+
+    // Clear previous timeout
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
+
+    // Clear results if query is empty
+    if (!query.trim()) {
+      this.searchResults = [];
+      this.isSearching = false;
+      return;
+    }
+
+    // Debounce search (500ms)
+    this.isSearching = true;
+    this.searchTimeout = setTimeout(() => {
+      this.performContentSearch(query);
+    }, 500);
+  }
+
+  async performContentSearch(query: string) {
+    if (!query.trim()) {
+      this.searchResults = [];
+      this.isSearching = false;
+      return;
+    }
+
+    try {
+      const res = await window.electronAPI.searchContent(query);
+      if (res.success && res.data) {
+        runInAction(() => {
+          this.searchResults = res.data!;
+          this.isSearching = false;
+        });
+      }
+    } catch (error) {
+      console.error('Search failed:', error);
+      runInAction(() => {
+        this.searchResults = [];
+        this.isSearching = false;
+      });
+    }
   }
 
   get projectName(): string {
@@ -31,26 +89,47 @@ export class FileStore {
 
   get filteredFiles(): FileNode[] {
     if (!this.searchQuery) return this.fileTree;
-    
+
     const lowerQuery = this.searchQuery.toLowerCase();
-    
+
+    // Fuzzy match function
+    const fuzzyMatch = (text: string, query: string): boolean => {
+      const textLower = text.toLowerCase();
+      let queryIndex = 0;
+      let textIndex = 0;
+
+      while (queryIndex < query.length && textIndex < textLower.length) {
+        if (query[queryIndex] === textLower[textIndex]) {
+          queryIndex++;
+        }
+        textIndex++;
+      }
+
+      return queryIndex === query.length;
+    };
+
+    // Check if file content matches (async, but we can't use async in getter)
+    // For now, just search by name with fuzzy matching
     const filterNode = (node: FileNode): FileNode | null => {
-      // If node matches, keep it and all children
-      if (node.name.toLowerCase().includes(lowerQuery)) {
+      // Try exact match first, then fuzzy match
+      const nameMatch = node.name.toLowerCase().includes(lowerQuery) ||
+                       fuzzyMatch(node.name, this.searchQuery);
+
+      if (nameMatch) {
         return node;
       }
-      
+
       // If node is directory, check children
       if (node.children) {
         const filteredChildren = node.children
           .map(filterNode)
           .filter((n): n is FileNode => n !== null);
-          
+
         if (filteredChildren.length > 0) {
           return { ...node, children: filteredChildren };
         }
       }
-      
+
       return null;
     };
 
@@ -92,23 +171,12 @@ export class FileStore {
 
     // Auto-save if current file has unsaved changes
     if (this.currentFile && this.unsavedFilePaths.has(this.currentFile.path)) {
-      runInAction(() => {
-        this.isAutoSaving = true;
-      });
-      try {
-        await this.saveCurrentFile();
-      } catch (error) {
-        console.error('Auto-save failed:', error);
-        alert('自动保存失败，已拦截跳转。请手动保存或检查文件权限。');
-        runInAction(() => {
-          this.isAutoSaving = false;
+      // Auto-save in background without blocking UI
+      this.saveCurrentFile()
+        .catch(error => {
+          console.error('Auto-save failed:', error);
+          this.toastStore.error('自动保存失败，请检查文件权限。');
         });
-        return; // Block navigation
-      } finally {
-        runInAction(() => {
-          this.isAutoSaving = false;
-        });
-      }
     }
     
     this.currentFile = node;
@@ -143,11 +211,11 @@ export class FileStore {
 
   async saveCurrentFile() {
     if (!this.currentFile) return;
-    
+
     this.isSaving = true;
     try {
       await window.electronAPI.saveFile(this.currentFile.path, this.currentContent);
-      
+
       // Auto-add to git after save
       await window.electronAPI.addGit(this.currentFile.path);
 
@@ -155,15 +223,11 @@ export class FileStore {
         this.originalContent = this.currentContent; // Update original content after save
         this.unsavedFilePaths.delete(this.currentFile!.path);
       });
-      
-      // Refresh git status to update UI indicators
-      // Since FileStore doesn't depend on GitStore, we can't call GitStore directly easily unless we inject it.
-      // But we can trigger a global event or let GitStore poll.
-      // GitStore polls every 10s, but that might be slow for immediate feedback "Add".
-      // Ideally we should call `gitStore.checkStatus()`.
-      // Let's use a CustomEvent or assume GitStore handles it?
-      // Or just wait for next poll. User said "saving is actually add".
-      // If we auto-add, the file status changes from 'M' (workdir) to 'M' (index) or 'A' (index).
+
+      // Trigger immediate git status update for better UX
+      if (this.gitStore) {
+        this.gitStore.checkStatus();
+      }
     } catch (error) {
       console.error('Failed to save file:', error);
       throw error;
@@ -178,12 +242,21 @@ export class FileStore {
     try {
       const res = await window.electronAPI.createFile(parentPath, name);
       if (res.success) {
+        // Optimistically add to file tree
+        if (res.data) {
+          this.insertNode(this.fileTree, parentPath, res.data);
+          // Select the new file
+          await this.selectFile(res.data);
+        }
+      } else {
+        this.toastStore.error(res.error || '创建文件失败');
+        // Fallback to full reload on error
         await this.loadFileTree();
-        // Optionally select the new file
-        if (res.data) this.selectFile(res.data);
       }
     } catch (error) {
       console.error('Failed to create file:', error);
+      this.toastStore.error('创建文件失败');
+      await this.loadFileTree();
     }
   }
 
@@ -191,10 +264,19 @@ export class FileStore {
     try {
       const res = await window.electronAPI.createDir(parentPath, name);
       if (res.success) {
+        // Optimistically add to file tree
+        if (res.data) {
+          this.insertNode(this.fileTree, parentPath, res.data);
+        }
+      } else {
+        this.toastStore.error(res.error || '创建文件夹失败');
+        // Fallback to full reload on error
         await this.loadFileTree();
       }
     } catch (error) {
       console.error('Failed to create directory:', error);
+      this.toastStore.error('创建文件夹失败');
+      await this.loadFileTree();
     }
   }
 
@@ -206,46 +288,128 @@ export class FileStore {
           this.currentFile = null;
           this.currentContent = '';
         }
+        // Optimistically remove from file tree
+        this.removeNode(this.fileTree, path);
+      } else {
+        this.toastStore.error(res.error || '删除失败');
+        // Fallback to full reload on error
         await this.loadFileTree();
       }
     } catch (error) {
       console.error('Failed to delete item:', error);
+      this.toastStore.error('删除失败');
+      await this.loadFileTree();
     }
   }
 
   async renameItem(oldPath: string, newName: string) {
     try {
       const res = await window.electronAPI.renameItem(oldPath, newName);
-      if (res.success) {
-        // If current file is renamed, we need to update its path in state?
-        // Actually loadFileTree will refresh the tree, but currentFile reference might be stale.
-        // Ideally we should update currentFile path.
-        // For now, let's just refresh tree.
+      if (res.success && res.data) {
+        const newPath = res.data;
+        const isCurrentFile = this.currentFile?.path === oldPath;
+
+        // Reload the file tree to reflect the change
         await this.loadFileTree();
-        // Check if we need to re-select
-        // This is complex if we don't know the new path construction here.
+
+        // If we renamed the current file, re-select it with the new path
+        if (isCurrentFile) {
+          // Find the file node with the new path
+          const findNode = (nodes: FileNode[], targetPath: string): FileNode | null => {
+            for (const node of nodes) {
+              if (node.path === targetPath) return node;
+              if (node.children) {
+                const found = findNode(node.children, targetPath);
+                if (found) return found;
+              }
+            }
+            return null;
+          };
+
+          const newNode = findNode(this.fileTree, newPath);
+          if (newNode && newNode.type === 'file') {
+            await this.selectFile(newNode);
+          }
+        }
+      } else {
+        this.toastStore.error(res.error || '重命名失败');
       }
     } catch (error) {
       console.error('Failed to rename item:', error);
+      this.toastStore.error('重命名失败');
     }
   }
-  
+
   // Drag and Drop Move
   async moveItem(sourcePath: string, targetParentPath: string) {
-    console.log('Moving', sourcePath, 'to', targetParentPath);
-    // This requires calculating the new full path.
-    // Since IPC `renameItem` takes (oldPath, newName), it might not support moving directories if implemented as simple fs.rename?
-    // fs.rename(oldPath, newPath) supports moving.
-    // My IPC `renameItem` takes `newName` and constructs `newPath = path.join(path.dirname(oldPath), newName)`.
-    // So my current `renameItem` ONLY supports renaming in place.
-    // I need a `moveItem` IPC or modify `renameItem` to accept `newPath`.
-    // Let's assume I should have implemented `moveItem` in backend.
-    // Since I didn't, I'll stick to renaming for now and skip drag-move implementation until backend supports it.
-    // Or I can add `moveItem` to backend quickly?
-    // "renameItem" in FileService: `const newPath = path.join(path.dirname(oldPath), newName);`
-    // Yes, it restricts to same dir.
-    // I'll skip Drag-Move for now or implement it properly. 
-    // Given the time, I will focus on Sidebar rendering and CRUD first.
-    console.warn('Move not implemented yet');
+    try {
+      const res = await window.electronAPI.moveItem(sourcePath, targetParentPath);
+      if (res.success && res.data) {
+        const newPath = res.data;
+        const isCurrentFile = this.currentFile?.path === sourcePath;
+
+        // Reload the file tree to reflect the change
+        await this.loadFileTree();
+
+        // If we moved the current file, re-select it with the new path
+        if (isCurrentFile) {
+          // Find the file node with the new path
+          const findNode = (nodes: FileNode[], targetPath: string): FileNode | null => {
+            for (const node of nodes) {
+              if (node.path === targetPath) return node;
+              if (node.children) {
+                const found = findNode(node.children, targetPath);
+                if (found) return found;
+              }
+            }
+            return null;
+          };
+
+          const newNode = findNode(this.fileTree, newPath);
+          if (newNode && newNode.type === 'file') {
+            await this.selectFile(newNode);
+          }
+        }
+      } else {
+        this.toastStore.error(res.error || '移动失败');
+      }
+    } catch (error) {
+      console.error('Failed to move item:', error);
+      this.toastStore.error('移动失败');
+    }
+  }
+
+  // Helper methods for incremental file tree updates
+  private insertNode(nodes: FileNode[], parentPath: string, newNode: FileNode): boolean {
+    for (const node of nodes) {
+      if (node.path === parentPath && node.type === 'directory') {
+        // Found the parent directory
+        if (!node.children) node.children = [];
+        // Insert and sort (directories first, then alphabetically)
+        node.children.push(newNode);
+        node.children.sort((a, b) => {
+          if (a.type === b.type) return a.name.localeCompare(b.name);
+          return a.type === 'directory' ? -1 : 1;
+        });
+        return true;
+      }
+      if (node.children && this.insertNode(node.children, parentPath, newNode)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private removeNode(nodes: FileNode[], targetPath: string): boolean {
+    for (let i = 0; i < nodes.length; i++) {
+      if (nodes[i].path === targetPath) {
+        nodes.splice(i, 1);
+        return true;
+      }
+      if (nodes[i].children && this.removeNode(nodes[i].children!, targetPath)) {
+        return true;
+      }
+    }
+    return false;
   }
 }

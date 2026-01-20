@@ -327,8 +327,17 @@ ipcMain.handle('file:delete', async (_, filePath) => {
 
 ipcMain.handle('file:rename', async (_, oldPath, newName) => {
   try {
-    await fileService.renameItem(oldPath, newName)
-    return { success: true }
+    const result = await fileService.renameItem(oldPath, newName)
+    return { success: true, data: result.newPath }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('file:move', async (_, sourcePath, targetParentPath) => {
+  try {
+    const result = await fileService.moveItem(sourcePath, targetParentPath)
+    return { success: true, data: result.newPath }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) }
   }
@@ -337,6 +346,14 @@ ipcMain.handle('file:rename', async (_, oldPath, newName) => {
 ipcMain.handle('file:copyToAssets', async (_, sourcePath, currentMdPath) => {
   try {
     return { success: true, data: await fileService.copyToAssets(sourcePath, currentMdPath) }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('file:searchContent', async (_, query) => {
+  try {
+    return { success: true, data: await fileService.searchContent(query) }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) }
   }

@@ -14,9 +14,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createDir: (parentPath, name) => ipcRenderer.invoke('file:createDir', parentPath, name),
   deleteItem: (path) => ipcRenderer.invoke('file:delete', path),
   renameItem: (oldPath, newName) => ipcRenderer.invoke('file:rename', oldPath, newName),
+  moveItem: (sourcePath, targetParentPath) => ipcRenderer.invoke('file:move', sourcePath, targetParentPath),
   copyToAssets: (sourcePath, currentMdPath) => ipcRenderer.invoke('file:copyToAssets', sourcePath, currentMdPath),
   exportHtml: (content, defaultPath) => ipcRenderer.invoke('file:exportHtml', content, defaultPath),
   exportPdf: (htmlContent, defaultPath) => ipcRenderer.invoke('file:exportPdf', htmlContent, defaultPath),
+  searchContent: (query) => ipcRenderer.invoke('file:searchContent', query),
 
   // Git
   getGitStatus: () => ipcRenderer.invoke('git:status'),

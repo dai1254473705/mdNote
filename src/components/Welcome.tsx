@@ -16,9 +16,7 @@ export const Welcome = observer(() => {
     const loadRecent = async () => {
       try {
         const res = await window.electronAPI.getConfig();
-        console.log('Welcome: Loaded config', res);
         if (res.success && res.data?.recentProjects) {
-          console.log('Welcome: Setting recent projects', res.data.recentProjects);
           setRecentProjects(res.data.recentProjects);
         }
         

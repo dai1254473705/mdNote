@@ -1,6 +1,7 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 import type { GitStatus } from '../types';
 import type { ToastStore } from './ToastStore';
+import type { UIStore } from './UIStore';
 
 export class GitStore {
   status: GitStatus = {
@@ -15,29 +16,31 @@ export class GitStore {
   syncStep: 'idle' | 'committing' | 'syncing' = 'idle';
   autoSyncIntervalId: ReturnType<typeof setInterval> | null = null;
   checkStatusIntervalId: ReturnType<typeof setInterval> | null = null;
-  
-  private toastStore: ToastStore;
 
-  constructor(toastStore: ToastStore) {
+  private toastStore: ToastStore;
+  private uiStore?: UIStore;
+
+  constructor(toastStore: ToastStore, uiStore?: UIStore) {
     makeAutoObservable(this);
     this.toastStore = toastStore;
+    this.uiStore = uiStore;
     this.startStatusLoop();
     this.startAutoSyncLoop();
   }
 
-  // Poll status every 10s
+  // Poll status every 30s (reduced from 10s for better performance)
   startStatusLoop() {
     this.checkStatus();
     this.checkStatusIntervalId = setInterval(() => {
       this.checkStatus();
-    }, 10000);
+    }, 30000);
   }
 
-  // Auto sync every 2 mins
+  // Auto sync every 5 mins (reduced from 2 mins to reduce background activity)
   startAutoSyncLoop() {
     this.autoSyncIntervalId = setInterval(() => {
       this.autoSync();
-    }, 120000);
+    }, 300000);
   }
 
   async checkStatus() {
@@ -89,7 +92,17 @@ export class GitStore {
     } catch (error) {
        console.error('Full sync failed:', error);
        if (!silent) {
-         this.toastStore.error('Sync failed: ' + (error instanceof Error ? error.message : String(error)));
+         const errorMessage = error instanceof Error ? error.message : String(error);
+         this.toastStore.error(`Sync failed: ${errorMessage}`, 10000);
+
+         // Show detailed error dialog
+         if (this.uiStore) {
+           this.uiStore.showErrorDialog(
+             '同步失败',
+             errorMessage,
+             error instanceof Error ? error.stack : String(error)
+           );
+         }
        }
     } finally {
       runInAction(() => {
@@ -120,7 +133,7 @@ export class GitStore {
   // Public sync method (for button click when no changes)
   async sync(silent: boolean = false) {
     if (this.isSyncing) return;
-    
+
     // Check if we have unsaved changes first
     if (this.status.modified && this.status.modified > 0) {
         await this.handleFullSync('Manual sync: ' + new Date().toLocaleString(), silent);
@@ -134,9 +147,20 @@ export class GitStore {
       if (!silent) {
         this.toastStore.success('Sync completed successfully');
       }
-    } catch {
+    } catch (error) {
+      console.error('Sync failed:', error);
       if (!silent) {
-        this.toastStore.error('Sync failed');
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.toastStore.error(`Sync failed: ${errorMessage}`, 10000); // 显示10秒
+
+        // Show detailed error dialog
+        if (this.uiStore) {
+          this.uiStore.showErrorDialog(
+            '同步失败',
+            errorMessage,
+            error instanceof Error ? error.stack : String(error)
+          );
+        }
       }
     } finally {
       runInAction(() => {

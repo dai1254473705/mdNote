@@ -5,10 +5,11 @@ import { RefreshCw, Check, AlertCircle, Sun, Moon, Monitor, Palette, Cloud, Uplo
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { cn } from '../utils/cn';
 import { THEME_COLORS } from '../constants/theme';
-import { useState } from 'react';
-import { MarkdownHelp } from './MarkdownHelp';
+import { useState, lazy, Suspense } from 'react';
 import { marked } from 'marked';
-// import { toast } from '../utils/toast'; 
+
+// Code splitting for help dialog
+const MarkdownHelp = lazy(() => import('./MarkdownHelp').then(m => ({ default: m.MarkdownHelp })));
 
 export const Toolbar = observer(() => {
   const { gitStore, uiStore, fileStore } = useStore();
@@ -466,7 +467,9 @@ ${htmlBody}
             </DropdownMenu.Root>
          </div>
       </div>
-      <MarkdownHelp isOpen={showHelp} onClose={() => setShowHelp(false)} />
+      <Suspense fallback={null}>
+        <MarkdownHelp isOpen={showHelp} onClose={() => setShowHelp(false)} />
+      </Suspense>
     </>
   );
 });

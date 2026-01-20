@@ -136,6 +136,11 @@ export const setupMockApi = () => {
       console.log(`[Mock] Rename ${oldPath} to ${newName}`);
       return { success: true };
     },
+    moveItem: async (sourcePath, targetParentPath) => {
+      await wait(MOCK_DELAY);
+      console.log(`[Mock] Move ${sourcePath} to ${targetParentPath}`);
+      return { success: true, data: `${targetParentPath}/${sourcePath.split('/').pop()}` };
+    },
     copyToAssets: async (sourcePath, currentMdPath) => {
       await wait(MOCK_DELAY);
       console.log(`[Mock] Copy ${sourcePath} to assets near ${currentMdPath}`);
@@ -150,6 +155,25 @@ export const setupMockApi = () => {
       await wait(MOCK_DELAY);
       console.log('[Mock] Export PDF');
       return { success: true, data: '/path/to/exported.pdf' };
+    },
+    searchContent: async (query) => {
+      await wait(MOCK_DELAY);
+      console.log(`[Mock] Search content: ${query}`);
+      return {
+        success: true,
+        data: [
+          {
+            path: '/mock/Work/Project Plan.md',
+            name: 'Project Plan.md',
+            matches: [`[1] # Project Plan`, `[[5]](#) - TODO: Implement ${query}`]
+          },
+          {
+            path: '/mock/Personal/Ideas.md',
+            name: 'Ideas.md',
+            matches: [`[3] - New idea about ${query}`]
+          }
+        ]
+      };
     },
 
     // Git

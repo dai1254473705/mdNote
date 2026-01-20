@@ -14,10 +14,12 @@ declare global {
       createFile: (parentPath: string, name: string) => Promise<IpcResponse<FileNode>>;
       createDir: (parentPath: string, name: string) => Promise<IpcResponse<FileNode>>;
       deleteItem: (path: string) => Promise<IpcResponse<void>>;
-      renameItem: (oldPath, newName) => Promise<IpcResponse<void>>;
+      renameItem: (oldPath: string, newName: string) => Promise<IpcResponse<string>>;
+      moveItem: (sourcePath: string, targetParentPath: string) => Promise<IpcResponse<string>>;
       copyToAssets: (sourcePath: string, currentMdPath: string) => Promise<IpcResponse<string>>;
       exportHtml: (content: string, defaultPath?: string) => Promise<IpcResponse<string>>;
       exportPdf: (htmlContent: string, defaultPath?: string) => Promise<IpcResponse<string>>;
+      searchContent: (query: string) => Promise<IpcResponse<Array<{ path: string; name: string; matches: string[] }>>>;
       
       // Git
       getGitStatus: () => Promise<IpcResponse<GitStatus>>;

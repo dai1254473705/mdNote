@@ -137,16 +137,34 @@ export class FileService {
     await fs.remove(itemPath);
   }
 
-  async renameItem(oldPath: string, newName: string): Promise<void> {
+  async renameItem(oldPath: string, newName: string): Promise<{ newPath: string }> {
     await this.validatePath(oldPath);
     const newPath = path.join(path.dirname(oldPath), newName);
     await this.validatePath(newPath);
-    
+
     if (await fs.pathExists(newPath)) {
       throw new Error('Destination already exists');
     }
-    
+
     await fs.rename(oldPath, newPath);
+    return { newPath };
+  }
+
+  async moveItem(sourcePath: string, targetParentPath: string): Promise<{ newPath: string }> {
+    await this.validatePath(sourcePath);
+    await this.validatePath(targetParentPath);
+
+    const sourceName = path.basename(sourcePath);
+    const newPath = path.join(targetParentPath, sourceName);
+
+    await this.validatePath(newPath);
+
+    if (await fs.pathExists(newPath)) {
+      throw new Error('Destination already exists');
+    }
+
+    await fs.move(sourcePath, newPath);
+    return { newPath };
   }
 
   /**
@@ -216,6 +234,75 @@ export class FileService {
     if (!rootPath || !targetPath.startsWith(rootPath)) {
       throw new Error('Access denied: Path is outside the notebook root.');
     }
+  }
+
+  /**
+   * Search content in markdown files
+   * @param query Search query string
+   * @returns Array of search results with file path and matching lines
+   */
+  async searchContent(query: string): Promise<Array<{ path: string; name: string; matches: string[] }>> {
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+
+    const rootPath = await this.getRootPath();
+    if (!rootPath) return [];
+
+    const results: Array<{ path: string; name: string; matches: string[] }> = [];
+    const lowerQuery = query.toLowerCase();
+
+    // Recursively search through all markdown files
+    const searchInDir = async (dirPath: string): Promise<void> => {
+      try {
+        const items = await fs.readdir(dirPath, { withFileTypes: true });
+
+        for (const item of items) {
+          if (IGNORED_NAMES.includes(item.name)) continue;
+
+          const itemPath = path.join(dirPath, item.name);
+
+          if (item.isDirectory()) {
+            // Recursively search subdirectories
+            await searchInDir(itemPath);
+          } else if (item.name.endsWith('.md')) {
+            // Search in markdown files
+            try {
+              const content = await fs.readFile(itemPath, 'utf-8');
+              const lines = content.split('\n');
+              const matches: string[] = [];
+
+              // Find all matching lines
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (line.toLowerCase().includes(lowerQuery)) {
+                  // Store line number (1-indexed) and line content
+                  matches.push(`[${i + 1}] ${line.trim()}`);
+                }
+              }
+
+              // Only include files with at least one match
+              if (matches.length > 0) {
+                results.push({
+                  path: itemPath,
+                  name: item.name,
+                  matches: matches.slice(0, 10) // Limit to 10 matches per file
+                });
+              }
+            } catch (error) {
+              console.error(`Error reading file ${itemPath}:`, error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Error reading directory ${dirPath}:`, error);
+      }
+    };
+
+    await searchInDir(rootPath);
+
+    // Limit total results to prevent performance issues
+    return results.slice(0, 50);
   }
 }
 
