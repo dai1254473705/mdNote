@@ -2,7 +2,7 @@
   "name": "zhixia-note",
   "productName": "知夏笔记",
   "private": true,
-  "version": "0.1.8",
+  "version": "0.1.12",
   "type": "commonjs",
   "scripts": {
     "dev": "vite",
@@ -63,7 +63,7 @@
     "productName": "知夏笔记",
     "copyright": "Copyright © 2026 知夏笔记",
     "mac": {
-      "icon": "src/assets/zhixia-logo.png",
+      "icon": "build/icon.icns",
       "target": [
         "dmg"
       ]

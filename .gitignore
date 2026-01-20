@@ -20,7 +20,6 @@ coverage
 # Production
 dist
 dist-ssr
-build
 *.local
 
 # Editor directories and files
