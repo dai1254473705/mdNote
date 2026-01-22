@@ -1,7 +1,7 @@
 import type { ThemeMode } from '../types';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../store';
-import { RefreshCw, Check, AlertCircle, Sun, Moon, Monitor, Palette, Cloud, UploadCloud, Eye, Edit3, Columns, HelpCircle, Download, FileCode, FileText, Loader2, Settings, FileSearch, FolderOpen } from 'lucide-react';
+import { RefreshCw, Check, AlertCircle, Sun, Moon, Monitor, Palette, Cloud, UploadCloud, Eye, Edit3, Columns, HelpCircle, Download, FileCode, FileText, Loader2, Settings, FolderOpen, Calendar, Droplet } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { cn } from '../utils/cn';
 import { THEME_COLORS } from '../constants/theme';
@@ -10,10 +10,11 @@ import { marked, Renderer } from 'marked';
 
 interface ToolbarProps {
   onHelpClick?: () => void;
+  onScheduleClick?: () => void;
 }
 
-export const Toolbar = observer(({ onHelpClick }: ToolbarProps) => {
-  const { gitStore, uiStore, fileStore } = useStore();
+export const Toolbar = observer(({ onHelpClick, onScheduleClick }: ToolbarProps) => {
+  const { gitStore, uiStore, fileStore, scheduleStore, drinkReminderStore, toastStore } = useStore();
   const [isExporting, setIsExporting] = useState(false);
 
   const handleSync = () => {
@@ -424,6 +425,51 @@ ${htmlBody}
                 </DropdownMenu.Content>
               </DropdownMenu.Portal>
             </DropdownMenu.Root>
+
+            {/* Schedule Button */}
+            <button
+              onClick={onScheduleClick}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors text-gray-500 hover:text-primary relative"
+              title="日程清单 (⌘+D)"
+            >
+              <Calendar size={18} />
+              {scheduleStore.overdueCount > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+              )}
+            </button>
+
+            {/* Drink Reminder Button */}
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-md p-0.5">
+              <button
+                onClick={async () => {
+                  const success = await drinkReminderStore.toggle();
+                  if (success) {
+                    toastStore?.success(drinkReminderStore.config.enabled ? '饮水提醒已开启' : '饮水提醒已关闭');
+                  }
+                }}
+                className={cn(
+                  "p-1.5 rounded-sm transition-all flex items-center gap-1",
+                  drinkReminderStore.config.enabled
+                    ? "bg-white dark:bg-gray-700 shadow-sm text-blue-500"
+                    : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                )}
+                title={drinkReminderStore.config.enabled ? "点击关闭提醒" : "点击开启提醒"}
+              >
+                <Droplet size={16} />
+              </button>
+              <button
+                onClick={() => drinkReminderStore.openSettings()}
+                className={cn(
+                  "p-1.5 rounded-sm transition-all",
+                  drinkReminderStore.config.enabled
+                    ? "text-blue-500"
+                    : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                )}
+                title="提醒设置"
+              >
+                <Settings size={14} />
+              </button>
+            </div>
 
             {/* Help Button */}
             <button

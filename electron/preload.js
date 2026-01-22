@@ -50,6 +50,28 @@ contextBridge.exposeInMainWorld('electronAPI', {
   encryptContent: (content) => ipcRenderer.invoke('crypto:encrypt', content),
   decryptContent: (content) => ipcRenderer.invoke('crypto:decrypt', content),
 
+  // Schedule
+  scheduleGetAll: () => ipcRenderer.invoke('schedule:getAll'),
+  scheduleGetById: (id) => ipcRenderer.invoke('schedule:getById', id),
+  scheduleAdd: (schedule) => ipcRenderer.invoke('schedule:add', schedule),
+  scheduleUpdate: (id, updates) => ipcRenderer.invoke('schedule:update', id, updates),
+  scheduleDelete: (id) => ipcRenderer.invoke('schedule:delete', id),
+  scheduleToggleComplete: (id) => ipcRenderer.invoke('schedule:toggleComplete', id),
+  scheduleGetToday: () => ipcRenderer.invoke('schedule:getToday'),
+  scheduleGetUpcoming: () => ipcRenderer.invoke('schedule:getUpcoming'),
+  scheduleGetOverdue: () => ipcRenderer.invoke('schedule:getOverdue'),
+
+  // Listen for schedule notifications from main process
+  onScheduleNotification: (callback) => ipcRenderer.on('schedule:notification', callback),
+  removeScheduleNotificationListener: (callback) => ipcRenderer.removeListener('schedule:notification', callback),
+
+  // Drink Reminder
+  drinkReminderGetConfig: () => ipcRenderer.invoke('drinkReminder:getConfig'),
+  drinkReminderUpdateConfig: (updates) => ipcRenderer.invoke('drinkReminder:updateConfig', updates),
+  drinkReminderToggle: () => ipcRenderer.invoke('drinkReminder:toggle'),
+  drinkReminderUpdateMessages: (messages) => ipcRenderer.invoke('drinkReminder:updateMessages', messages),
+  drinkReminderResetMessages: () => ipcRenderer.invoke('drinkReminder:resetMessages'),
+
   // Window Controls
   maximizeWindow: () => ipcRenderer.send('window:maximize'),
   minimizeWindow: () => ipcRenderer.send('window:minimize'),

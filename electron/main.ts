@@ -8,6 +8,10 @@ import { fileService } from './services/fileService'
 import { gitService } from './services/gitService'
 import { cryptoService } from './services/cryptoService'
 import { logService, log, logError, logWarn } from './services/logService'
+import { scheduleService } from './services/scheduleService'
+import type { ScheduleItem } from './services/scheduleService'
+import { drinkReminderService } from './services/drinkReminderService'
+import type { DrinkReminderConfig } from './services/drinkReminderService'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -25,7 +29,7 @@ log(`Log Path: ${logService.getLogPath()}`);
 // Disable hardware acceleration
 app.disableHardwareAcceleration()
 
-// Set App Name for macOS Menu
+// Set App Name for notifications and system
 app.setName('知夏笔记')
 
 const createMenu = () => {
@@ -990,6 +994,137 @@ ipcMain.handle('crypto:encrypt', async (_, content) => {
 ipcMain.handle('crypto:decrypt', async (_, content) => {
   try {
     return { success: true, data: await cryptoService.decryptContent(content) }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+// Schedule
+ipcMain.handle('schedule:getAll', async () => {
+  try {
+    return { success: true, data: scheduleService.getAllSchedules() }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('schedule:getById', async (_, id: string) => {
+  try {
+    const schedule = scheduleService.getScheduleById(id)
+    if (!schedule) return { success: false, error: 'Schedule not found' }
+    return { success: true, data: schedule }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('schedule:add', async (_, schedule: Omit<ScheduleItem, 'id' | 'createdAt' | 'updatedAt'>) => {
+  try {
+    return { success: true, data: scheduleService.addSchedule(schedule) }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('schedule:update', async (_, id: string, updates: Partial<ScheduleItem>) => {
+  try {
+    const result = scheduleService.updateSchedule(id, updates)
+    if (!result) return { success: false, error: 'Schedule not found' }
+    return { success: true, data: result }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('schedule:delete', async (_, id: string) => {
+  try {
+    const result = scheduleService.deleteSchedule(id)
+    if (!result) return { success: false, error: 'Schedule not found' }
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('schedule:toggleComplete', async (_, id: string) => {
+  try {
+    const result = scheduleService.toggleComplete(id)
+    if (!result) return { success: false, error: 'Schedule not found' }
+    return { success: true, data: result }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('schedule:getToday', async () => {
+  try {
+    return { success: true, data: scheduleService.getTodaySchedules() }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('schedule:getUpcoming', async () => {
+  try {
+    return { success: true, data: scheduleService.getUpcomingSchedules() }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('schedule:getOverdue', async () => {
+  try {
+    return { success: true, data: scheduleService.getOverdueSchedules() }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+// Drink Reminder
+ipcMain.handle('drinkReminder:getConfig', async () => {
+  try {
+    const config = drinkReminderService.getConfig()
+    const nextTime = drinkReminderService.getNextReminderTime()
+    return { success: true, data: { ...config, nextReminderTime: nextTime } }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('drinkReminder:updateConfig', async (_, updates: Partial<DrinkReminderConfig>) => {
+  try {
+    const config = drinkReminderService.updateConfig(updates)
+    const nextTime = drinkReminderService.getNextReminderTime()
+    return { success: true, data: { ...config, nextReminderTime: nextTime } }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('drinkReminder:toggle', async () => {
+  try {
+    const enabled = drinkReminderService.toggleEnabled()
+    const config = drinkReminderService.getConfig()
+    const nextTime = drinkReminderService.getNextReminderTime()
+    return { success: true, data: { enabled, ...config, nextReminderTime: nextTime } }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('drinkReminder:updateMessages', async (_, messages: string[]) => {
+  try {
+    const updatedMessages = drinkReminderService.updateMessages(messages)
+    return { success: true, data: updatedMessages }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('drinkReminder:resetMessages', async () => {
+  try {
+    const messages = drinkReminderService.resetMessages()
+    return { success: true, data: messages }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) }
   }

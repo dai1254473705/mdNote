@@ -73,6 +73,35 @@ export interface IpcResponse<T = unknown> {
   error?: string;
 }
 
+// 日程相关类型
+export interface ScheduleReminder {
+  type: 'minutes' | 'hours' | 'days';
+  value: number;
+  notified?: boolean;
+}
+
+export interface ScheduleItem {
+  id: string;
+  title: string;
+  description?: string;
+  startTime: string; // ISO string
+  endTime: string;   // ISO string
+  reminders: ScheduleReminder[];
+  completed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 饮水提醒相关类型
+export interface DrinkReminderConfig {
+  enabled: boolean;
+  startHour: number;
+  endHour: number;
+  intervalMinutes: number;
+  messages: string[];
+  nextReminderTime?: string | null;
+}
+
 export interface IpcApi {
   // System
   showItemInFolder: (path: string) => Promise<IpcResponse<void>>;

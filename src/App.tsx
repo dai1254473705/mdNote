@@ -6,6 +6,8 @@ import { ToastContainer } from './components/Toast';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 import { HelpDialog } from './components/HelpDialog';
 import { ErrorDialog } from './components/ErrorDialog';
+import { SchedulePanel } from './components/Schedule';
+import { DrinkReminderDialog } from './components/DrinkReminder';
 import { useStore } from './store';
 import { useEffect, lazy, Suspense, useState } from 'react';
 import { Loader2 } from 'lucide-react';
@@ -17,6 +19,7 @@ const App = observer(() => {
   const { uiStore, fileStore } = useStore();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
 
   useEffect(() => {
     uiStore.initTheme();
@@ -37,6 +40,12 @@ const App = observer(() => {
       if (isMod && e.key === 'h') {
         e.preventDefault();
         setShowHelp(prev => !prev);
+      }
+
+      // Cmd+D to open schedule panel
+      if (isMod && e.key === 'd') {
+        e.preventDefault();
+        setShowSchedule(prev => !prev);
       }
 
       // Cmd+B to toggle sidebar
@@ -124,11 +133,15 @@ const App = observer(() => {
         </Suspense>
       ) : (
         <div className="h-screen w-screen flex flex-col bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 overflow-hidden font-sans">
-          <Toolbar onHelpClick={() => setShowHelp(true)} />
+          <Toolbar
+            onHelpClick={() => setShowHelp(true)}
+            onScheduleClick={() => setShowSchedule(true)}
+          />
           <div className="flex-1 flex overflow-hidden">
             <Sidebar />
             <Editor />
           </div>
+          <SchedulePanel isOpen={showSchedule} onClose={() => setShowSchedule(false)} />
         </div>
       )}
       <ToastContainer />
@@ -141,6 +154,7 @@ const App = observer(() => {
         details={uiStore.errorDialog.details}
         onClose={() => uiStore.closeErrorDialog()}
       />
+      <DrinkReminderDialog />
     </>
   );
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Download, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { X, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import logo from '../assets/zhixia-logo.svg';
 
@@ -26,7 +26,6 @@ export const ExportProgressDialog: React.FC<ExportProgressDialogProps> = ({
   isOpen,
   title,
   currentFile,
-  currentProgress = 0,
   totalProgress = 0,
   items,
   status,
@@ -205,7 +204,7 @@ export const useExportProgressDialog = () => {
       title,
       currentProgress: 0,
       totalProgress: 0,
-      items: Array(totalCount).fill(null).map((_, i) => ({
+      items: Array(totalCount).fill(null).map(() => ({
         fileName: '',
         status: 'pending' as const
       })),

@@ -1,4 +1,4 @@
-import { AppConfig, FileNode, GitStatus, IpcResponse } from './index';
+import { AppConfig, FileNode, GitStatus, IpcResponse, ScheduleItem, DrinkReminderConfig } from './index';
 
 declare global {
   interface Window {
@@ -49,6 +49,26 @@ declare global {
       // Crypto
       encryptContent: (content: string) => Promise<IpcResponse<string>>;
       decryptContent: (content: string) => Promise<IpcResponse<string>>;
+
+      // Schedule
+      scheduleGetAll: () => Promise<IpcResponse<ScheduleItem[]>>;
+      scheduleGetById: (id: string) => Promise<IpcResponse<ScheduleItem>>;
+      scheduleAdd: (schedule: Omit<ScheduleItem, 'id' | 'createdAt' | 'updatedAt'>) => Promise<IpcResponse<ScheduleItem>>;
+      scheduleUpdate: (id: string, updates: Partial<ScheduleItem>) => Promise<IpcResponse<ScheduleItem>>;
+      scheduleDelete: (id: string) => Promise<IpcResponse<void>>;
+      scheduleToggleComplete: (id: string) => Promise<IpcResponse<ScheduleItem>>;
+      scheduleGetToday: () => Promise<IpcResponse<ScheduleItem[]>>;
+      scheduleGetUpcoming: () => Promise<IpcResponse<ScheduleItem[]>>;
+      scheduleGetOverdue: () => Promise<IpcResponse<ScheduleItem[]>>;
+      onScheduleNotification: (callback: () => void) => void;
+      removeScheduleNotificationListener: (callback: () => void) => void;
+
+      // Drink Reminder
+      drinkReminderGetConfig: () => Promise<IpcResponse<DrinkReminderConfig>>;
+      drinkReminderUpdateConfig: (updates: Partial<DrinkReminderConfig>) => Promise<IpcResponse<DrinkReminderConfig>>;
+      drinkReminderToggle: () => Promise<IpcResponse<DrinkReminderConfig>>;
+      drinkReminderUpdateMessages: (messages: string[]) => Promise<IpcResponse<string[]>>;
+      drinkReminderResetMessages: () => Promise<IpcResponse<string[]>>;
 
       // Window
       maximizeWindow: () => void;

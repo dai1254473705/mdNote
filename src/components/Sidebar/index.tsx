@@ -27,7 +27,6 @@ import {
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { ExportProgressDialog } from '../ExportProgressDialog';
-import type { ExportProgressItem } from '../../store/FileStore';
 
 // Create context for expand/collapse state
 interface ExpandContextType {
