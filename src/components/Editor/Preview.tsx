@@ -61,11 +61,49 @@ export const Preview = observer(({ content }: { content: string }) => {
   const { uiStore, fileStore } = useStore();
   const ref = useRef<HTMLDivElement>(null);
 
+  // Check if current file is JSON or TEXT
+  const getFileType = () => {
+    if (!fileStore.currentFile) return 'markdown';
+    const fileName = fileStore.currentFile.name.toLowerCase();
+    if (fileName.endsWith('.json')) return 'json';
+    if (fileName.endsWith('.txt')) return 'text';
+    return 'markdown';
+  };
+
+  const fileType = getFileType();
+
   useEffect(() => {
+    if (!ref.current) return;
+
+    // Handle JSON files - pretty print with syntax highlighting
+    if (fileType === 'json') {
+      try {
+        const jsonObj = JSON.parse(content || '{}');
+        const formattedJson = JSON.stringify(jsonObj, null, 2);
+        ref.current.innerHTML = `<pre><code class="language-json">${formattedJson}</code></pre>`;
+        hljs.highlightElement(ref.current.querySelector('code') as HTMLElement);
+      } catch (error) {
+        ref.current.innerHTML = `<pre><code class="language-json">${content || ''}</code></pre>`;
+        hljs.highlightElement(ref.current.querySelector('code') as HTMLElement);
+      }
+      return;
+    }
+
+    // Handle TEXT files - display as plain text with line breaks
+    if (fileType === 'text') {
+      const escapedContent = (content || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      ref.current.innerHTML = `<pre style="white-space: pre-wrap; word-wrap: break-word;"><code>${escapedContent}</code></pre>`;
+      return;
+    }
+
+    // Handle Markdown files
     // Custom Image Renderer to intercept and rewrite local paths
     // We do this inside useEffect/component to access fileStore context
     const customRenderer = new marked.Renderer();
-    
+
     // Preserve existing link renderer logic
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     customRenderer.link = renderer.link;
@@ -76,17 +114,17 @@ export const Preview = observer(({ content }: { content: string }) => {
 
       let src = href;
       let style = '';
-      
+
       // Parse Query Params for size (e.g. ?w=100px)
       try {
         // Use a dummy base for relative URLs
         const urlObj = new URL(href, 'http://dummy');
         const width = urlObj.searchParams.get('w');
         const height = urlObj.searchParams.get('h');
-        
+
         if (width) style += `width: ${width};`;
         if (height) style += `height: ${height};`;
-        
+
         // Note: we keep the query params in the src because the main process ignores them for file path resolution,
         // and removing them might break some web URLs that depend on them.
         // But for local files, it shouldn't matter.
@@ -100,7 +138,7 @@ export const Preview = observer(({ content }: { content: string }) => {
              // Construct absolute path using a simple slash join (assuming macOS/Linux forward slashes for now)
              // or better, let the main process handle the joining if we passed just the filename.
              // But here we have relative path like "files/image.png".
-             
+
              // We need the directory of the current file.
              // /Users/user/project/doc.md -> /Users/user/project
              const currentFilePath = fileStore.currentFile.path;
@@ -128,7 +166,7 @@ export const Preview = observer(({ content }: { content: string }) => {
       // 1. Markdown Parsing
       const html = marked.parse(content || '', { async: false }) as string;
       ref.current.innerHTML = html;
-      
+
       // 2. Syntax Highlighting
       ref.current.querySelectorAll('pre code').forEach((block) => {
         hljs.highlightElement(block as HTMLElement);
@@ -136,24 +174,42 @@ export const Preview = observer(({ content }: { content: string }) => {
 
       // 3. Mermaid Rendering
       const mermaidBlocks = ref.current.querySelectorAll('code.language-mermaid');
+      const mermaidDivs: HTMLElement[] = [];
+
       mermaidBlocks.forEach((block, index) => {
         const pre = block.parentElement;
         if (pre) {
           const div = document.createElement('div');
           div.className = 'mermaid';
           div.textContent = block.textContent || '';
-          div.id = `mermaid-${index}`;
+          div.id = `mermaid-${Date.now()}-${index}`;
           pre.replaceWith(div);
+          mermaidDivs.push(div);
         }
       });
 
-      if (ref.current.querySelector('.mermaid')) {
-        mermaid.run({
-            nodes: ref.current.querySelectorAll('.mermaid')
+      // Only run mermaid if there are blocks and they're in the DOM
+      if (mermaidDivs.length > 0 && document.body.contains(ref.current)) {
+        // Use requestAnimationFrame to ensure DOM is ready
+        requestAnimationFrame(() => {
+          try {
+            // Filter out any elements that might have been removed
+            const validElements = mermaidDivs.filter(div => document.body.contains(div));
+
+            if (validElements.length > 0) {
+              mermaid.run({
+                nodes: validElements
+              }).catch((error: Error) => {
+                console.warn('Mermaid rendering error:', error.message);
+              });
+            }
+          } catch (error) {
+            console.warn('Mermaid execution error:', error);
+          }
         });
       }
     }
-  }, [content]);
+  }, [content, fileType]);
 
   const getThemeClass = () => {
     if (!uiStore.markdownTheme || uiStore.markdownTheme === 'default') {

@@ -300,6 +300,33 @@ ipcMain.handle('file:save', async (_, filePath, content) => {
   }
 })
 
+// Direct file write API for batch export (bypasses path validation)
+ipcMain.handle('file:saveDirect', async (_, filePath, content) => {
+  try {
+    console.log('saveFileDirect called with path:', filePath);
+    await fsPromises.writeFile(filePath, content, 'utf-8');
+    console.log('saveFileDirect successfully wrote:', filePath);
+    return { success: true, data: filePath };
+  } catch (error) {
+    console.error('saveFileDirect error:', error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+})
+
+// Read help documentation from project root (bypasses notebook path validation)
+ipcMain.handle('file:readHelpDoc', async (_, fileName) => {
+  try {
+    const helpDocPath = path.join(__dirname, '..', '帮助文档', fileName);
+    console.log('readHelpDoc called with path:', helpDocPath);
+    const content = await fsPromises.readFile(helpDocPath, 'utf-8');
+    console.log('readHelpDoc successfully read:', helpDocPath);
+    return { success: true, data: content };
+  } catch (error) {
+    console.error('readHelpDoc error:', error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+})
+
 ipcMain.handle('file:create', async (_, parentPath, name) => {
   try {
     return { success: true, data: await fileService.createFile(parentPath, name) }
@@ -414,11 +441,94 @@ const processHtmlContent = async (htmlContent: string) => {
 ipcMain.handle('file:exportHtml', async (_, content, defaultPath) => {
   try {
     const { filePath } = await dialog.showSaveDialog({
+      title: '导出 HTML',
       defaultPath,
       filters: [{ name: 'HTML', extensions: ['html'] }]
     });
     if (filePath) {
-      const finalContent = await processHtmlContent(content);
+      // Wrap content in a complete HTML document with proper styling
+      const completeHtml = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>导出的笔记</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #fff;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        pre {
+            background: #f6f8fa;
+            padding: 16px;
+            overflow: auto;
+            border-radius: 6px;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 85%;
+        }
+        blockquote {
+            border-left: 4px solid #ddd;
+            padding-left: 16px;
+            color: #666;
+            margin: 16px 0;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 16px 0;
+        }
+        table th,
+        table td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+        }
+        table th {
+            background: #f6f8fa;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+        h1 { font-size: 2em; }
+        h2 { font-size: 1.5em; }
+        h3 { font-size: 1.25em; }
+        a {
+            color: #0969da;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .mermaid {
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    ${content}
+</body>
+</html>`;
+
+      const finalContent = await processHtmlContent(completeHtml);
       await fsPromises.writeFile(filePath, finalContent);
       return { success: true, data: filePath };
     }
@@ -431,22 +541,111 @@ ipcMain.handle('file:exportHtml', async (_, content, defaultPath) => {
 ipcMain.handle('file:exportPdf', async (_, htmlContent, defaultPath) => {
   try {
     const { filePath } = await dialog.showSaveDialog({
+      title: '导出 PDF',
       defaultPath,
       filters: [{ name: 'PDF', extensions: ['pdf'] }]
     });
-    
+
     if (filePath) {
+      // Wrap content in a complete HTML document with proper styling for PDF
+      const completeHtml = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>导出的笔记</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            padding: 20mm;
+            font-size: 11pt;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        pre {
+            background: #f6f8fa;
+            padding: 12px;
+            overflow: auto;
+            border-radius: 4px;
+            font-size: 9pt;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 9pt;
+        }
+        blockquote {
+            border-left: 4px solid #ddd;
+            padding-left: 16px;
+            color: #666;
+            margin: 16px 0;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 16px 0;
+            font-size: 10pt;
+        }
+        table th,
+        table td {
+            border: 1px solid #ddd;
+            padding: 6px 10px;
+        }
+        table th {
+            background: #f6f8fa;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            margin-top: 18px;
+            margin-bottom: 12px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+        h1 { font-size: 1.8em; }
+        h2 { font-size: 1.4em; }
+        h3 { font-size: 1.2em; }
+        a {
+            color: #0969da;
+            text-decoration: none;
+        }
+        .mermaid {
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    ${htmlContent}
+</body>
+</html>`;
+
       // Process images to base64 for PDF too, to ensure they load
-      const finalContent = await processHtmlContent(htmlContent);
-      
-      const win = new BrowserWindow({ show: false });
+      const finalContent = await processHtmlContent(completeHtml);
+
+      // Get the icon path
+      const iconPath = process.env.VITE_DEV_SERVER_URL
+        ? path.join(__dirname, '../public/zhixia-logo.png')
+        : path.join(__dirname, '../dist/zhixia-logo.png');
+
+      const win = new BrowserWindow({
+        show: false,
+        webPreferences: { nodeIntegration: true },
+        icon: iconPath,
+        title: '知夏笔记'
+      });
       await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(finalContent)}`);
-      
+
       const pdfData = await win.webContents.printToPDF({
         printBackground: true,
         pageSize: 'A4',
         margins: {
-          top: 0.4, // inches, approx 10mm
+          top: 0.4,
           bottom: 0.4,
           left: 0.4,
           right: 0.4
@@ -458,6 +657,137 @@ ipcMain.handle('file:exportPdf', async (_, htmlContent, defaultPath) => {
     }
     return { success: false, error: 'Canceled' };
   } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+// Direct export APIs for batch export (no dialog)
+ipcMain.handle('file:exportHtmlDirect', async (_, content, outputPath) => {
+  try {
+    console.log('exportHtmlDirect called with path:', outputPath);
+    const finalContent = await processHtmlContent(content);
+    await fsPromises.writeFile(outputPath, finalContent);
+    console.log('exportHtmlDirect successfully wrote:', outputPath);
+    return { success: true, data: outputPath };
+  } catch (error) {
+    console.error('exportHtmlDirect error:', error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle('file:exportPdfDirect', async (_, htmlContent, outputPath) => {
+  try {
+    console.log('exportPdfDirect called with path:', outputPath);
+    // Wrap content in a complete HTML document with proper styling for PDF
+    const completeHtml = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>导出的笔记</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            padding: 20mm;
+            font-size: 11pt;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        pre {
+            background: #f6f8fa;
+            padding: 12px;
+            overflow: auto;
+            border-radius: 4px;
+            font-size: 9pt;
+        }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 9pt;
+        }
+        blockquote {
+            border-left: 4px solid #ddd;
+            padding-left: 16px;
+            color: #666;
+            margin: 16px 0;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 16px 0;
+            font-size: 10pt;
+        }
+        table th,
+        table td {
+            border: 1px solid #ddd;
+            padding: 6px 10px;
+        }
+        table th {
+            background: #f6f8fa;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            margin-top: 18px;
+            margin-bottom: 12px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+        h1 { font-size: 1.8em; }
+        h2 { font-size: 1.4em; }
+        h3 { font-size: 1.2em; }
+        a {
+            color: #0969da;
+            text-decoration: none;
+        }
+        .mermaid {
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    ${htmlContent}
+</body>
+</html>`;
+
+    // Process images to base64 for PDF too, to ensure they load
+    const finalContent = await processHtmlContent(completeHtml);
+
+    // Get the icon path
+    const iconPath = process.env.VITE_DEV_SERVER_URL
+      ? path.join(__dirname, '../public/zhixia-logo.png')
+      : path.join(__dirname, '../dist/zhixia-logo.png');
+
+    const win = new BrowserWindow({
+      show: false,
+      webPreferences: { nodeIntegration: true },
+      icon: iconPath,
+      title: '知夏笔记'
+    });
+    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(finalContent)}`);
+
+    const pdfData = await win.webContents.printToPDF({
+      printBackground: true,
+      pageSize: 'A4',
+      margins: {
+        top: 0.4,
+        bottom: 0.4,
+        left: 0.4,
+        right: 0.4
+      }
+    });
+    await fsPromises.writeFile(outputPath, pdfData);
+    console.log('exportPdfDirect successfully wrote:', outputPath);
+    win.close();
+    return { success: true, data: outputPath };
+  } catch (error) {
+    console.error('exportPdfDirect error:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 });

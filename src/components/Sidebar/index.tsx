@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, createContext } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../../store';
 import { cn } from '../../utils/cn';
@@ -19,16 +19,31 @@ import {
   RotateCw,
   Search,
   GripVertical,
-  Loader2
+  Loader2,
+  Download,
+  FoldVertical,
+  UnfoldVertical
 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Tooltip from '@radix-ui/react-tooltip';
+
+// Create context for expand/collapse state
+interface ExpandContextType {
+  expandAll: boolean | null;
+  setExpandAll: (value: boolean | null) => void;
+}
+
+const ExpandContext = createContext<ExpandContextType>({
+  expandAll: null,
+  setExpandAll: () => {}
+});
 
 const FileTreeItem = observer(({ node, level }: {
   node: FileNode;
   level: number;
 }) => {
   const { fileStore, gitStore } = useStore();
+  const expandContext = React.useContext(ExpandContext);
   const isSelected = fileStore.currentFile?.path === node.path;
   const isFolder = node.type === 'directory';
   const isModified = !isFolder && fileStore.unsavedFilePaths.has(node.path);
@@ -43,6 +58,18 @@ const FileTreeItem = observer(({ node, level }: {
   const [isExpanded, setIsExpanded] = useState(level === 0);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(displayName);
+
+  // Listen to global expand/collapse state changes
+  useEffect(() => {
+    if (isFolder) {
+      if (expandContext.expandAll !== null) {
+        setIsExpanded(expandContext.expandAll);
+      } else {
+        // Reset to default: level 0 expanded, others collapsed
+        setIsExpanded(level === 0);
+      }
+    }
+  }, [expandContext.expandAll, isFolder, level]);
 
   useEffect(() => {
     setRenameValue(displayName);
@@ -162,6 +189,52 @@ const FileTreeItem = observer(({ node, level }: {
                           <FolderPlus size={14} className="mr-2" /> New Folder
                         </DropdownMenu.Item>
                       )}
+
+                      {/* Export Menu for Folders */}
+                      {isFolder && (
+                        <>
+                          <DropdownMenu.Separator className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+                          <DropdownMenu.Sub>
+                            <DropdownMenu.SubTrigger className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary rounded outline-none">
+                              <Download size={14} className="mr-2" />
+                              批量导出
+                              <ChevronRight size={12} className="ml-auto" />
+                            </DropdownMenu.SubTrigger>
+                            <DropdownMenu.Portal>
+                              <DropdownMenu.SubContent
+                                className="min-w-[140px] bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 p-1 z-50"
+                                sideOffset={5}
+                              >
+                                <DropdownMenu.Item
+                                  className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary rounded outline-none"
+                                  onSelect={async () => {
+                                    await fileStore.batchExportNotes(node.path, 'md');
+                                  }}
+                                >
+                                  <FileText size={14} className="mr-2" /> 导出为 MD
+                                </DropdownMenu.Item>
+                                <DropdownMenu.Item
+                                  className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary rounded outline-none"
+                                  onSelect={async () => {
+                                    await fileStore.batchExportNotes(node.path, 'html');
+                                  }}
+                                >
+                                  <FileText size={14} className="mr-2" /> 导出为 HTML
+                                </DropdownMenu.Item>
+                                <DropdownMenu.Item
+                                  className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary rounded outline-none"
+                                  onSelect={async () => {
+                                    await fileStore.batchExportNotes(node.path, 'pdf');
+                                  }}
+                                >
+                                  <FileText size={14} className="mr-2" /> 导出为 PDF
+                                </DropdownMenu.Item>
+                              </DropdownMenu.SubContent>
+                            </DropdownMenu.Portal>
+                          </DropdownMenu.Sub>
+                        </>
+                      )}
+
                       <DropdownMenu.Separator className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
 
                        <DropdownMenu.Item
@@ -304,6 +377,7 @@ export const Sidebar = observer(() => {
   const { fileStore, uiStore } = useStore();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
+  const [expandAll, setExpandAll] = useState<boolean | null>(null);
 
   // 拖拽调整宽度
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -354,10 +428,52 @@ export const Sidebar = observer(() => {
       {/* Header */}
       <div className="h-16 px-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <img src={logo} alt="Logo" className="w-10 h-10 shrink-0" />
+          <img src={logo} alt="Logo" className="w-10 h-10 shrink-0 dark:brightness-0 dark:invert" />
           <span className="font-bold text-lg text-gray-700 dark:text-gray-200 truncate">知夏笔记</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+           <DropdownMenu.Root>
+             <DropdownMenu.Trigger asChild>
+               <button
+                 className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 rounded transition-colors"
+                 title="展开/折叠菜单"
+               >
+                 <UnfoldVertical size={16} />
+               </button>
+             </DropdownMenu.Trigger>
+
+             <DropdownMenu.Portal>
+               <DropdownMenu.Content
+                 className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[160px] z-50"
+                 align="end"
+                 sideOffset={5}
+               >
+                 <DropdownMenu.Item
+                   className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors flex items-center gap-2"
+                   onClick={() => setExpandAll(true)}
+                 >
+                   <UnfoldVertical size={14} />
+                   展开全部
+                 </DropdownMenu.Item>
+                 <DropdownMenu.Item
+                   className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors flex items-center gap-2"
+                   onClick={() => setExpandAll(false)}
+                 >
+                   <FoldVertical size={14} />
+                   折叠全部
+                 </DropdownMenu.Item>
+                 <DropdownMenu.Separator className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+                 <DropdownMenu.Item
+                   className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors flex items-center gap-2"
+                   onClick={() => setExpandAll(null)}
+                 >
+                   <RotateCw size={14} />
+                   重置状态
+                 </DropdownMenu.Item>
+               </DropdownMenu.Content>
+             </DropdownMenu.Portal>
+           </DropdownMenu.Root>
+
            <button
              onClick={() => fileStore.loadFileTree()}
              className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 rounded transition-colors"
@@ -425,9 +541,11 @@ export const Sidebar = observer(() => {
               暂无文件
             </div>
           ) : (
-            fileStore.filteredFiles.map(node => (
-              <FileTreeItem key={node.id} node={node} level={0} />
-            ))
+            <ExpandContext.Provider value={{ expandAll, setExpandAll }}>
+              {fileStore.filteredFiles.map(node => (
+                <FileTreeItem key={node.id} node={node} level={0} />
+              ))}
+            </ExpandContext.Provider>
           )
         )}
       </div>

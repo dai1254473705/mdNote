@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getFileTree: () => ipcRenderer.invoke('file:getTree'),
   readFile: (path) => ipcRenderer.invoke('file:read', path),
   saveFile: (path, content) => ipcRenderer.invoke('file:save', path, content),
+  saveFileDirect: (path, content) => ipcRenderer.invoke('file:saveDirect', path, content),
+  readHelpDoc: (fileName) => ipcRenderer.invoke('file:readHelpDoc', fileName),
   createFile: (parentPath, name) => ipcRenderer.invoke('file:create', parentPath, name),
   createDir: (parentPath, name) => ipcRenderer.invoke('file:createDir', parentPath, name),
   deleteItem: (path) => ipcRenderer.invoke('file:delete', path),
@@ -18,6 +20,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   copyToAssets: (sourcePath, currentMdPath) => ipcRenderer.invoke('file:copyToAssets', sourcePath, currentMdPath),
   exportHtml: (content, defaultPath) => ipcRenderer.invoke('file:exportHtml', content, defaultPath),
   exportPdf: (htmlContent, defaultPath) => ipcRenderer.invoke('file:exportPdf', htmlContent, defaultPath),
+  exportHtmlDirect: (content, outputPath) => ipcRenderer.invoke('file:exportHtmlDirect', content, outputPath),
+  exportPdfDirect: (htmlContent, outputPath) => ipcRenderer.invoke('file:exportPdfDirect', htmlContent, outputPath),
   searchContent: (query) => ipcRenderer.invoke('file:searchContent', query),
 
   // Git
@@ -48,3 +52,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
   minimizeWindow: () => ipcRenderer.send('window:minimize'),
   closeWindow: () => ipcRenderer.send('window:close'),
 });
+

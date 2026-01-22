@@ -9,6 +9,9 @@ interface KeyboardShortcutsProps {
 const shortcuts = [
   { key: '⌘ + N', description: '新建笔记', category: '文件' },
   { key: '⌘ + S', description: '保存笔记', category: '文件' },
+  { key: '⌘ + W', description: '关闭当前标签', category: '标签' },
+  { key: '⌘ + Tab', description: '切换到下一个标签', category: '标签' },
+  { key: '⌘ + Shift + Tab', description: '切换到上一个标签', category: '标签' },
   { key: '⌘ + E', description: '导出笔记', category: '文件' },
   { key: '⌘ + /', description: '显示/隐藏快捷键帮助', category: '帮助' },
   { key: '⌘ + B', description: '切换侧边栏', category: '视图' },

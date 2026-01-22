@@ -2,6 +2,7 @@ import { observer } from 'mobx-react-lite';
 import { useStore } from '../../store';
 import { Preview } from './Preview';
 import { EditorToolbar } from './EditorToolbar';
+import { TabBar } from '../TabBar';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as prettier from "prettier/standalone";
 import * as prettierPluginMarkdown from "prettier/plugins/markdown";
@@ -192,45 +193,49 @@ export const Editor = observer(() => {
     );
   }
 
-  // Handle non-markdown files (Preview only)
-  if (!fileStore.currentFile.name.endsWith('.md')) {
-    const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileStore.currentFile.name);
-    
+  // Handle non-editable files (images only)
+  const fileName = fileStore.currentFile.name.toLowerCase();
+  const isEditable = fileName.endsWith('.md') || fileName.endsWith('.json') || fileName.endsWith('.txt');
+  const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileStore.currentFile.name);
+
+  if (!isEditable) {
     return (
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-gray-50 dark:bg-gray-900">
-         <div className="h-12 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center px-4 shrink-0">
-            <span className="font-medium text-gray-700 dark:text-gray-200">{fileStore.currentFile.name}</span>
-         </div>
-         <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
-            {isImage ? (
-               // Use media:// protocol to display local image
-               // We need to construct the URL manually since we don't have it in fileStore yet (only path)
-               // But wait, fileStore.currentFile.path is absolute path.
-               // We need to use the same logic as Preview.tsx or simpler.
-               // Preview.tsx uses: media://local/Users/...
-               <img 
-                 src={`media://local${fileStore.currentFile.path}`} 
-                 alt={fileStore.currentFile.name} 
-                 className="max-w-full max-h-full object-contain shadow-lg rounded-lg"
-               />
-            ) : (
-              <div className="text-center">
-                <div className="text-6xl mb-4">📄</div>
-                <p className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {fileStore.currentFile.name}
-                </p>
-                <p className="text-sm text-gray-500">
-                  This file type is not supported for editing or previewing yet.
-                </p>
-                <button 
-                  className="mt-4 px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors"
-                  onClick={() => window.electronAPI.showItemInFolder(fileStore.currentFile!.path)}
-                >
-                  Show in Folder
-                </button>
-              </div>
-            )}
-         </div>
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Tab Bar - Always show tabs */}
+        <TabBar />
+
+        {/* Content */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden bg-gray-50 dark:bg-gray-900">
+           <div className="h-12 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center px-4 shrink-0">
+              <span className="font-medium text-gray-700 dark:text-gray-200">{fileStore.currentFile.name}</span>
+           </div>
+           <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
+              {isImage ? (
+                 // Use media:// protocol to display local image
+                 <img
+                   src={`media://local${fileStore.currentFile.path}`}
+                   alt={fileStore.currentFile.name}
+                   className="max-w-full max-h-full object-contain shadow-lg rounded-lg"
+                 />
+              ) : (
+                <div className="text-center">
+                  <div className="text-6xl mb-4">📄</div>
+                  <p className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {fileStore.currentFile.name}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    This file type is not supported for editing or previewing yet.
+                  </p>
+                  <button
+                    className="mt-4 px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors"
+                    onClick={() => window.electronAPI.showItemInFolder(fileStore.currentFile!.path)}
+                  >
+                    Show in Folder
+                  </button>
+                </div>
+              )}
+           </div>
+        </div>
       </div>
     );
   }
@@ -239,10 +244,13 @@ export const Editor = observer(() => {
   const showEditor = uiStore.viewMode === 'editor' || uiStore.viewMode === 'split';
   const showPreview = uiStore.viewMode === 'preview' || uiStore.viewMode === 'split';
   const showResizer = uiStore.viewMode === 'split';
-  const showToolbar = uiStore.viewMode !== 'preview';
+  const showToolbar = uiStore.viewMode !== 'preview' && fileName.endsWith('.md'); // Only show toolbar for Markdown files
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
+      {/* Tab Bar */}
+      <TabBar />
+
       {/* Toolbar Area */}
       {showToolbar && (
         <EditorToolbar onInsert={handleInsert} onUpload={handleUpload} onFormat={handleFormat} />

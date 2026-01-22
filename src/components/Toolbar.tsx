@@ -5,15 +5,15 @@ import { RefreshCw, Check, AlertCircle, Sun, Moon, Monitor, Palette, Cloud, Uplo
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { cn } from '../utils/cn';
 import { THEME_COLORS } from '../constants/theme';
-import { useState, lazy, Suspense } from 'react';
+import { useState } from 'react';
 import { marked } from 'marked';
 
-// Code splitting for help dialog
-const MarkdownHelp = lazy(() => import('./MarkdownHelp').then(m => ({ default: m.MarkdownHelp })));
+interface ToolbarProps {
+  onHelpClick?: () => void;
+}
 
-export const Toolbar = observer(() => {
+export const Toolbar = observer(({ onHelpClick }: ToolbarProps) => {
   const { gitStore, uiStore, fileStore } = useStore();
-  const [showHelp, setShowHelp] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
   const handleSync = () => {
@@ -355,9 +355,9 @@ ${htmlBody}
 
             {/* Help Button */}
             <button
-              onClick={() => setShowHelp(true)}
+              onClick={onHelpClick}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors text-gray-500 hover:text-primary"
-              title="Markdown Syntax Help"
+              title="帮助文档 (⌘+H)"
             >
               <HelpCircle size={18} />
             </button>
@@ -467,9 +467,6 @@ ${htmlBody}
             </DropdownMenu.Root>
          </div>
       </div>
-      <Suspense fallback={null}>
-        <MarkdownHelp isOpen={showHelp} onClose={() => setShowHelp(false)} />
-      </Suspense>
     </>
   );
 });

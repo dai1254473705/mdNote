@@ -25,7 +25,8 @@ export class GitStore {
     this.toastStore = toastStore;
     this.uiStore = uiStore;
     this.startStatusLoop();
-    this.startAutoSyncLoop();
+    // 移除自动同步循环，改为手动同步
+    // this.startAutoSyncLoop();
   }
 
   // Poll status every 30s (reduced from 10s for better performance)

@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Editor from './components/Editor';
 import { ToastContainer } from './components/Toast';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
+import { HelpDialog } from './components/HelpDialog';
 import { ErrorDialog } from './components/ErrorDialog';
 import { useStore } from './store';
 import { useEffect, lazy, Suspense, useState } from 'react';
@@ -15,6 +16,7 @@ const Welcome = lazy(() => import('./components/Welcome').then(m => ({ default: 
 const App = observer(() => {
   const { uiStore, fileStore } = useStore();
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
     uiStore.initTheme();
@@ -23,26 +25,62 @@ const App = observer(() => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const isMod = e.metaKey || e.ctrlKey;
+
       // Cmd+/ or Ctrl+/ to show shortcuts
-      if ((e.metaKey || e.ctrlKey) && e.key === '/') {
+      if (isMod && e.key === '/') {
         e.preventDefault();
         setShowShortcuts(prev => !prev);
       }
 
+      // Cmd+H or Ctrl+H to show help
+      if (isMod && e.key === 'h') {
+        e.preventDefault();
+        setShowHelp(prev => !prev);
+      }
+
       // Cmd+B to toggle sidebar
-      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+      if (isMod && e.key === 'b') {
         e.preventDefault();
         uiStore.toggleSidebar();
       }
 
       // Cmd+N to create new note
-      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+      if (isMod && e.key === 'n') {
         e.preventDefault();
         fileStore.createFile(fileStore.rootPath, 'New Note.md');
       }
 
+      // Cmd+W to close current tab
+      if (isMod && e.key === 'w') {
+        e.preventDefault();
+        if (fileStore.activeTabId) {
+          fileStore.closeTab(fileStore.activeTabId);
+        }
+      }
+
+      // Cmd+Tab to switch to next tab
+      if (isMod && e.key === 'Tab') {
+        e.preventDefault();
+        const currentIndex = fileStore.openTabs.findIndex(t => t.file.id === fileStore.activeTabId);
+        if (currentIndex >= 0 && fileStore.openTabs.length > 0) {
+          const nextIndex = (currentIndex + 1) % fileStore.openTabs.length;
+          fileStore.switchTab(fileStore.openTabs[nextIndex].file.id);
+        }
+      }
+
+      // Cmd+Shift+Tab to switch to previous tab
+      if (isMod && e.shiftKey && e.key === 'Tab') {
+        e.preventDefault();
+        const currentIndex = fileStore.openTabs.findIndex(t => t.file.id === fileStore.activeTabId);
+        if (currentIndex >= 0 && fileStore.openTabs.length > 0) {
+          const prevIndex = currentIndex === 0 ? fileStore.openTabs.length - 1 : currentIndex - 1;
+          fileStore.switchTab(fileStore.openTabs[prevIndex].file.id);
+        }
+      }
+
       // Cmd+E to export
-      if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
+      if (isMod && e.key === 'e') {
         e.preventDefault();
         // Trigger export (you can implement this based on your export logic)
       }
@@ -86,7 +124,7 @@ const App = observer(() => {
         </Suspense>
       ) : (
         <div className="h-screen w-screen flex flex-col bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 overflow-hidden font-sans">
-          <Toolbar />
+          <Toolbar onHelpClick={() => setShowHelp(true)} />
           <div className="flex-1 flex overflow-hidden">
             <Sidebar />
             <Editor />
@@ -95,6 +133,7 @@ const App = observer(() => {
       )}
       <ToastContainer />
       <KeyboardShortcuts isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
+      <HelpDialog isOpen={showHelp} onClose={() => setShowHelp(false)} />
       <ErrorDialog
         isOpen={uiStore.errorDialog.isOpen}
         title={uiStore.errorDialog.title}
