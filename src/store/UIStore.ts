@@ -18,11 +18,14 @@ export class UIStore {
     message: string;
     details?: string;
   } = {
-    isOpen: false,
-    title: '',
-    message: '',
-    details: '',
-  };
+      isOpen: false,
+      title: '',
+      message: '',
+      details: '',
+    };
+
+  gridView: boolean = false; // Added missing property just in case, but focusing on defaultViewMode
+  defaultViewMode: ViewMode = 'split';
 
   constructor() {
     makeAutoObservable(this);
@@ -38,6 +41,8 @@ export class UIStore {
           this.themeMode = res.data!.themeMode;
           this.themeColor = res.data!.themeColor;
           this.markdownTheme = res.data!.markdownTheme || 'default';
+          this.defaultViewMode = res.data!.defaultViewMode || 'split';
+          this.viewMode = this.defaultViewMode; // Apply default view mode on startup
           this.isProjectReady = !!res.data!.repoPath;
           this.sidebarWidth = (res.data as any).sidebarWidth || 256;
           this.applyTheme();
@@ -105,13 +110,20 @@ export class UIStore {
     await this.saveConfig({ markdownTheme: theme });
   }
 
+  async setDefaultViewMode(mode: ViewMode) {
+    this.defaultViewMode = mode;
+    await this.saveConfig({ defaultViewMode: mode });
+  }
+
   setViewMode(mode: ViewMode) {
     this.viewMode = mode;
+    // Implicitly save as default view mode for better UX
+    this.saveConfig({ defaultViewMode: mode });
   }
 
   private applyTheme() {
     const root = document.documentElement;
-    
+
     // Mode
     if (this.themeMode === 'dark') {
       root.classList.add('dark');

@@ -33,6 +33,7 @@ export interface AppConfig {
   themeMode: ThemeMode;
   themeColor: ThemeColor;
   markdownTheme?: string; // New field for Markdown theme
+  defaultViewMode?: ViewMode; // Default view mode on startup
   repoPath: string;  // 本地仓库路径 (通常是 userHome/.zhixia-note)
   recentProjects: string[]; // 最近打开的项目路径列表
   remoteUrl?: string;

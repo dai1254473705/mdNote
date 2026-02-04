@@ -12,6 +12,7 @@ const DEFAULT_CONFIG: AppConfig = {
   themeMode: 'system',
   themeColor: 'default',
   markdownTheme: 'default',
+  defaultViewMode: 'split',
   repoPath: '', // Will be initialized dynamically
   recentProjects: [],
   encryption: {
@@ -50,23 +51,23 @@ export class ConfigService {
       // This is crucial for Security Rule #2
       const gitignorePath = path.join(this.rootDir, GITIGNORE_FILE_NAME);
       const gitignoreContent = `${CONFIG_FILE_NAME}\n${SECRET_FILE_NAME}\n`;
-      
+
       if (!await fs.pathExists(gitignorePath)) {
-          await fs.writeFile(gitignorePath, gitignoreContent);
+        await fs.writeFile(gitignorePath, gitignoreContent);
       } else {
-          const currentContent = await fs.readFile(gitignorePath, 'utf-8');
-          if (!currentContent.includes(CONFIG_FILE_NAME) || !currentContent.includes(SECRET_FILE_NAME)) {
-              await fs.appendFile(gitignorePath, `\n${CONFIG_FILE_NAME}\n${SECRET_FILE_NAME}\n`);
-          }
+        const currentContent = await fs.readFile(gitignorePath, 'utf-8');
+        if (!currentContent.includes(CONFIG_FILE_NAME) || !currentContent.includes(SECRET_FILE_NAME)) {
+          await fs.appendFile(gitignorePath, `\n${CONFIG_FILE_NAME}\n${SECRET_FILE_NAME}\n`);
+        }
       }
 
       // 3. Ensure config.json exists
       console.log('Check config path:', this.configPath);
       if (!await fs.pathExists(this.configPath)) {
         // Initial config with empty repoPath, waiting for user selection
-        const initialConfig: AppConfig = { 
-          ...DEFAULT_CONFIG, 
-          repoPath: '' 
+        const initialConfig: AppConfig = {
+          ...DEFAULT_CONFIG,
+          repoPath: ''
         };
         await fs.writeJson(this.configPath, initialConfig, { spaces: 2 });
         this.configCache = initialConfig;
@@ -74,10 +75,10 @@ export class ConfigService {
         const currentConfig = await fs.readJson(this.configPath);
         // Merge with default config to ensure all fields exist
         this.configCache = { ...DEFAULT_CONFIG, ...currentConfig };
-        
+
         // If the file on disk was missing fields, update it
         if (JSON.stringify(currentConfig) !== JSON.stringify(this.configCache)) {
-             await fs.writeJson(this.configPath, this.configCache, { spaces: 2 });
+          await fs.writeJson(this.configPath, this.configCache, { spaces: 2 });
         }
       }
     } catch (error) {
@@ -104,18 +105,18 @@ export class ConfigService {
   async addRecentProject(projectPath: string): Promise<AppConfig> {
     const config = await this.getConfig();
     let recent = config.recentProjects || [];
-    
+
     // Remove if exists (to move to top)
     recent = recent.filter(p => p !== projectPath);
-    
+
     // Add to top
     recent.unshift(projectPath);
-    
+
     // Limit to 10
     if (recent.length > 10) {
       recent = recent.slice(0, 10);
     }
-    
+
     return this.saveConfig({ recentProjects: recent });
   }
 

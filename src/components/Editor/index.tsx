@@ -1,12 +1,15 @@
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../../store';
 import { Preview, setWikilinkClickHandler } from './Preview';
+import { PreviewFloatingTools } from './PreviewFloatingTools';
 import { EditorToolbar } from './EditorToolbar';
 import { TabBar } from '../TabBar';
 import { BacklinksPanel } from '../BacklinksPanel';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as prettier from "prettier/standalone";
 import * as prettierPluginMarkdown from "prettier/plugins/markdown";
+
+import { SearchBar, type SearchBarRef } from './SearchBar';
 
 // 撤销/重做历史栈
 const MAX_HISTORY = 50;
@@ -22,6 +25,86 @@ export const Editor = observer(() => {
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const searchBarRef = useRef<SearchBarRef>(null);
+
+  // Search State
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [matchIndex, setMatchIndex] = useState(0); // 1-based for display
+  const [matches, setMatches] = useState<number[]>([]); // Array of start indices
+
+  // Search Logic
+  const performSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    if (!query) {
+      setMatches([]);
+      setMatchIndex(0);
+      return;
+    }
+
+    const content = fileStore.currentContent;
+    const newMatches: number[] = [];
+    let pos = content.indexOf(query);
+    while (pos !== -1) {
+      newMatches.push(pos);
+      pos = content.indexOf(query, pos + 1);
+    }
+    setMatches(newMatches);
+
+    // Reset to first match or keep relative matching if possible (simplified to first for now)
+    if (newMatches.length > 0) {
+      scrollToMatch(newMatches[0], query.length, false);
+      setMatchIndex(1);
+    } else {
+      setMatchIndex(0);
+    }
+  }, [fileStore.currentContent]);
+
+  const scrollToMatch = (startIndex: number, length: number, shouldFocus: boolean = false) => {
+    if (textareaRef.current) {
+      if (shouldFocus) {
+        textareaRef.current.focus();
+      }
+      textareaRef.current.setSelectionRange(startIndex, startIndex + length);
+
+      // Calculate scroll position to vertically center the match
+      const textarea = textareaRef.current;
+      const content = textarea.value;
+      const textBefore = content.substring(0, startIndex);
+      const linesBefore = textBefore.split('\n').length;
+      const lineHeight = 24; // Approximation based on text-base leading-relaxed
+      const scrollToY = (linesBefore * lineHeight) - (textarea.clientHeight / 2);
+
+      textarea.scrollTo({
+        top: Math.max(0, scrollToY),
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const findNext = () => {
+    if (matches.length === 0) return;
+    const nextIndex = matchIndex >= matches.length ? 1 : matchIndex + 1;
+    setMatchIndex(nextIndex);
+    scrollToMatch(matches[nextIndex - 1], searchQuery.length, false);
+  };
+
+  const findPrev = () => {
+    if (matches.length === 0) return;
+    const prevIndex = matchIndex <= 1 ? matches.length : matchIndex - 1;
+    setMatchIndex(prevIndex);
+    scrollToMatch(matches[prevIndex - 1], searchQuery.length, false);
+  };
+
+  const closeSearch = () => {
+    setShowSearch(false);
+    setSearchQuery('');
+    setMatches([]);
+    setMatchIndex(0);
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
 
   // 撤销/重做状态
   const historyRef = useRef<HistoryState[]>([]);
@@ -128,15 +211,28 @@ export const Editor = observer(() => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const isMod = e.metaKey || e.ctrlKey;
+
+      // Search: Cmd+F
+      if (isMod && e.key === 'f') {
+        e.preventDefault();
+        setShowSearch(true);
+        // Force focus if already shown
+        if (searchBarRef.current) {
+          searchBarRef.current.focus();
+        }
+        return;
+      }
+
       // Cmd/Ctrl + Z 撤销
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+      if (isMod && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         undo();
         return;
       }
 
       // Cmd/Ctrl + Shift + Z 或 Cmd/Ctrl + Y 重做
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'Z' && e.shiftKey || e.key === 'y')) {
+      if (isMod && (e.key === 'Z' && e.shiftKey || e.key === 'y')) {
         e.preventDefault();
         redo();
         return;
@@ -200,7 +296,7 @@ export const Editor = observer(() => {
     const textarea = e.currentTarget;
     const percentage = textarea.scrollTop / (textarea.scrollHeight - textarea.clientHeight);
     const preview = previewRef.current;
-    
+
     preview.scrollTop = percentage * (preview.scrollHeight - preview.clientHeight);
   };
 
@@ -285,20 +381,20 @@ export const Editor = observer(() => {
 
   const handleInsert = (prefix: string, suffix: string) => {
     if (!textareaRef.current) return;
-    
+
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const text = textarea.value;
-    
+
     const before = text.substring(0, start);
     const selection = text.substring(start, end);
     const after = text.substring(end);
-    
+
     const newText = before + prefix + selection + suffix + after;
-    
+
     fileStore.updateContent(newText);
-    
+
     // Debounced Auto Save
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -306,7 +402,7 @@ export const Editor = observer(() => {
     saveTimeoutRef.current = setTimeout(() => {
       fileStore.saveCurrentFile();
     }, 1000);
-    
+
     // Restore cursor / focus
     setTimeout(() => {
       textarea.focus();
@@ -321,8 +417,8 @@ export const Editor = observer(() => {
     if (!fileStore.currentFile) return;
 
     try {
-      const filters = type === 'image' 
-        ? [{ name: 'Images', extensions: ['jpg', 'png', 'gif', 'webp', 'svg'] }] 
+      const filters = type === 'image'
+        ? [{ name: 'Images', extensions: ['jpg', 'png', 'gif', 'webp', 'svg'] }]
         : [];
 
       const result = await window.electronAPI.openFile({ filters });
@@ -330,15 +426,15 @@ export const Editor = observer(() => {
 
       const sourcePath = result.data.filePaths[0];
       const copyResult = await window.electronAPI.copyToAssets(sourcePath, fileStore.currentFile.path);
-      
+
       if (copyResult.success && copyResult.data) {
         const relativePath = copyResult.data;
         const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(sourcePath);
         const fileName = sourcePath.split(/[/\\]/).pop() || 'file';
-        
+
         const prefix = isImage ? `![${fileName}](` : `[${fileName}](`;
         const suffix = `)`;
-        
+
         handleInsert(prefix + relativePath, suffix);
         triggerSave();
       } else {
@@ -374,13 +470,13 @@ export const Editor = observer(() => {
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizing.current) return;
-    
+
     const container = document.getElementById('editor-container');
     if (!container) return;
-    
+
     const containerRect = container.getBoundingClientRect();
     const newRatio = ((e.clientX - containerRect.left) / containerRect.width) * 100;
-    
+
     // Limit between 20% and 80%
     if (newRatio > 20 && newRatio < 80) {
       setSplitRatio(newRatio);
@@ -481,35 +577,35 @@ export const Editor = observer(() => {
 
         {/* Content */}
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-gray-50 dark:bg-gray-900">
-           <div className="h-12 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center px-4 shrink-0">
-              <span className="font-medium text-gray-700 dark:text-gray-200">{fileStore.currentFile.name}</span>
-           </div>
-           <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
-              {isImage ? (
-                 // Use media:// protocol to display local image
-                 <img
-                   src={`media://local${fileStore.currentFile.path}`}
-                   alt={fileStore.currentFile.name}
-                   className="max-w-full max-h-full object-contain shadow-lg rounded-lg"
-                 />
-              ) : (
-                <div className="text-center">
-                  <div className="text-6xl mb-4">📄</div>
-                  <p className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {fileStore.currentFile.name}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    This file type is not supported for editing or previewing yet.
-                  </p>
-                  <button
-                    className="mt-4 px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors"
-                    onClick={() => window.electronAPI.showItemInFolder(fileStore.currentFile!.path)}
-                  >
-                    Show in Folder
-                  </button>
-                </div>
-              )}
-           </div>
+          <div className="h-12 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center px-4 shrink-0">
+            <span className="font-medium text-gray-700 dark:text-gray-200">{fileStore.currentFile.name}</span>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
+            {isImage ? (
+              // Use media:// protocol to display local image
+              <img
+                src={`media://local${fileStore.currentFile.path}`}
+                alt={fileStore.currentFile.name}
+                className="max-w-full max-h-full object-contain shadow-lg rounded-lg"
+              />
+            ) : (
+              <div className="text-center">
+                <div className="text-6xl mb-4">📄</div>
+                <p className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {fileStore.currentFile.name}
+                </p>
+                <p className="text-sm text-gray-500">
+                  This file type is not supported for editing or previewing yet.
+                </p>
+                <button
+                  className="mt-4 px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors"
+                  onClick={() => window.electronAPI.showItemInFolder(fileStore.currentFile!.path)}
+                >
+                  Show in Folder
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -537,33 +633,43 @@ export const Editor = observer(() => {
 
       {/* Split Pane Area */}
       <div id="editor-container" className="flex-1 flex overflow-hidden relative">
+        <SearchBar
+          ref={searchBarRef}
+          show={showSearch}
+          onClose={closeSearch}
+          onSearch={performSearch}
+          onNext={findNext}
+          onPrev={findPrev}
+          current={matchIndex}
+          total={matches.length}
+        />
         {/* Editor */}
         {showEditor && (
           <div
-              style={{ width: editorWidth }}
-              className="h-full border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 relative group"
+            style={{ width: editorWidth }}
+            className="h-full border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 relative group"
           >
-             <textarea
-               ref={textareaRef}
-               className="w-full h-full resize-none p-6 md:p-10 lg:p-12 outline-none bg-transparent text-gray-800 dark:text-gray-200 font-mono text-base leading-relaxed custom-scrollbar"
-               value={fileStore.currentContent}
-               onChange={handleChange}
-               onScroll={handleScroll}
-               onPaste={handlePaste}
-               placeholder="Start writing..."
-               spellCheck={false}
-             />
-             {fileStore.isSaving && (
-               <div className="absolute top-2 right-2 text-xs text-gray-400 animate-pulse">
-                 Saving...
-               </div>
-             )}
+            <textarea
+              ref={textareaRef}
+              className="w-full h-full resize-none p-6 md:p-10 lg:p-12 outline-none bg-transparent text-gray-800 dark:text-gray-200 font-mono text-base leading-relaxed custom-scrollbar"
+              value={fileStore.currentContent}
+              onChange={handleChange}
+              onScroll={handleScroll}
+              onPaste={handlePaste}
+              placeholder="Start writing..."
+              spellCheck={false}
+            />
+            {fileStore.isSaving && (
+              <div className="absolute top-2 right-2 text-xs text-gray-400 animate-pulse">
+                Saving...
+              </div>
+            )}
           </div>
         )}
-        
+
         {/* Resizer Handle */}
         {showResizer && (
-          <div 
+          <div
             className="w-1 bg-gray-100 dark:bg-gray-800 cursor-col-resize z-10 flex items-center justify-center transition-colors hover:bg-[var(--color-primary)]"
             onMouseDown={startResize}
           >
@@ -575,15 +681,21 @@ export const Editor = observer(() => {
         {/* Preview */}
         {showPreview && (
           <div
-              style={{ width: previewWidth }}
-              className="h-full flex flex-col bg-gray-50 dark:bg-gray-900/50"
+            style={{ width: previewWidth }}
+            className="h-full flex flex-col bg-gray-50 dark:bg-gray-900/50 relative"
           >
             <div
               ref={previewRef}
               className="flex-1 overflow-y-auto custom-scrollbar"
             >
-              <Preview content={fileStore.currentContent} />
+              <Preview
+                content={fileStore.currentContent}
+                searchQuery={showSearch ? searchQuery : ''}
+                currentMatchIndex={matchIndex}
+              />
             </div>
+            {/* Floating Tools for Preview */}
+            <PreviewFloatingTools previewRef={previewRef} />
             <BacklinksPanel />
           </div>
         )}

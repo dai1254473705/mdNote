@@ -41,7 +41,7 @@ const FileTreeItem = observer(({ node, level }: {
   node: FileNode;
   level: number;
 }) => {
-  const { fileStore, gitStore } = useStore();
+  const { fileStore, gitStore, uiStore } = useStore();
 
   // const expandContext = React.useContext(ExpandContext); // Removed
   const isSelected = fileStore.currentFile?.path === node.path;
@@ -57,7 +57,36 @@ const FileTreeItem = observer(({ node, level }: {
   // Use global expansion state
   const isExpanded = isFolder && !!fileStore.expandedPaths[node.path];
 
+  // Helper to extract theme CSS
+  const getThemeInfo = () => {
+    let themeCss = '';
+    try {
+      for (const sheet of Array.from(document.styleSheets)) {
+        try {
+          const rules = sheet.cssRules;
+          for (const rule of Array.from(rules)) {
+            // Extract base markdown container rules and specific theme rules
+            if (rule.cssText.includes('.markdown-theme-container') || rule.cssText.includes('.md-style-')) {
+              themeCss += rule.cssText + '\n';
+            }
+            if (rule.type === CSSRule.IMPORT_RULE || rule.type === CSSRule.FONT_FACE_RULE) {
+              themeCss += rule.cssText + '\n';
+            }
+          }
+        } catch (e) {
+          console.warn('Could not read rules from stylesheet', sheet.href, e);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to extract theme CSS:', e);
+    }
 
+    const themeClass = (!uiStore.markdownTheme || uiStore.markdownTheme === 'default')
+      ? 'prose max-w-none p-6 md:p-10 lg:p-12'
+      : `markdown-theme-container md-style-${uiStore.markdownTheme} p-6 md:p-10 lg:p-12`;
+
+    return { themeCss, themeClass };
+  };
 
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(displayName);
@@ -217,7 +246,8 @@ const FileTreeItem = observer(({ node, level }: {
                                 className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary rounded outline-none"
                                 onClick={(e) => e.stopPropagation()}
                                 onSelect={async () => {
-                                  await fileStore.batchExportNotes(node.path, 'html');
+                                  const { themeCss, themeClass } = getThemeInfo();
+                                  await fileStore.batchExportNotes(node.path, 'html', themeCss, themeClass);
                                 }}
                               >
                                 <FileText size={14} className="mr-2" /> 导出为 HTML
@@ -226,7 +256,8 @@ const FileTreeItem = observer(({ node, level }: {
                                 className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary rounded outline-none"
                                 onClick={(e) => e.stopPropagation()}
                                 onSelect={async () => {
-                                  await fileStore.batchExportNotes(node.path, 'pdf');
+                                  const { themeCss, themeClass } = getThemeInfo();
+                                  await fileStore.batchExportNotes(node.path, 'pdf', themeCss, themeClass);
                                 }}
                               >
                                 <FileText size={14} className="mr-2" /> 导出为 PDF

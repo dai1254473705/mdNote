@@ -17,7 +17,7 @@ const renderer = new marked.Renderer();
 
 // Custom Link Renderer for File Icons
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-renderer.link = function({ href, title, tokens }: { href: string; title?: string | null; tokens: any[] }) {
+renderer.link = function ({ href, title, tokens }: { href: string; title?: string | null; tokens: any[] }) {
   const text = this.parser.parseInline(tokens);
   if (!href) return text;
 
@@ -89,7 +89,14 @@ export const parseWikilinks = (content: string): Wikilink[] => {
   return links;
 };
 
-export const Preview = memo(observer(function Preview({ content }: { content: string }) {
+interface PreviewProps {
+  content: string;
+  searchQuery?: string;
+  currentMatchIndex?: number;
+  onMatchesFound?: (count: number) => void;
+}
+
+export const Preview = memo(observer(function Preview({ content, searchQuery, currentMatchIndex, onMatchesFound }: PreviewProps) {
   const { uiStore, fileStore, backlinkStore } = useStore();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -103,6 +110,10 @@ export const Preview = memo(observer(function Preview({ content }: { content: st
   };
 
   const fileType = getFileType();
+
+  // Search Highlighting Logic
+  // Case insensitive search
+  // (Moved to bottom to ensure execution after content render)
 
   // Update backlinks when content changes
   useEffect(() => {
@@ -183,27 +194,27 @@ export const Preview = memo(observer(function Preview({ content }: { content: st
 
       // If it's a relative path and not a web URL
       if (!href.startsWith('http') && !href.startsWith('data:') && !href.startsWith('media:')) {
-         if (fileStore.currentFile) {
-             // Construct absolute path using a simple slash join (assuming macOS/Linux forward slashes for now)
-             // or better, let the main process handle the joining if we passed just the filename.
-             // But here we have relative path like "files/image.png".
+        if (fileStore.currentFile) {
+          // Construct absolute path using a simple slash join (assuming macOS/Linux forward slashes for now)
+          // or better, let the main process handle the joining if we passed just the filename.
+          // But here we have relative path like "files/image.png".
 
-             // We need the directory of the current file.
-             // /Users/user/project/doc.md -> /Users/user/project
-             const currentFilePath = fileStore.currentFile.path;
-             const lastSlashIndex = currentFilePath.lastIndexOf('/');
-             if (lastSlashIndex !== -1) {
-                 const currentDir = currentFilePath.substring(0, lastSlashIndex);
-                 // Construct media:// URL
-                 // Note: we need to handle if href starts with ./ or ../
-                 // For now, assuming simple "files/..."
-                 const absolutePath = `${currentDir}/${href}`;
-                 // Use a dummy host 'local' to ensure the path is treated as an absolute pathname
-                 // This prevents issues where the first directory component is interpreted as the host
-                 // e.g. media:///Users/... vs media://users/...
-                 src = `media://local${absolutePath}`;
-             }
-         }
+          // We need the directory of the current file.
+          // /Users/user/project/doc.md -> /Users/user/project
+          const currentFilePath = fileStore.currentFile.path;
+          const lastSlashIndex = currentFilePath.lastIndexOf('/');
+          if (lastSlashIndex !== -1) {
+            const currentDir = currentFilePath.substring(0, lastSlashIndex);
+            // Construct media:// URL
+            // Note: we need to handle if href starts with ./ or ../
+            // For now, assuming simple "files/..."
+            const absolutePath = `${currentDir}/${href}`;
+            // Use a dummy host 'local' to ensure the path is treated as an absolute pathname
+            // This prevents issues where the first directory component is interpreted as the host
+            // e.g. media:///Users/... vs media://users/...
+            src = `media://local${absolutePath}`;
+          }
+        }
       }
 
       return `<img src="${src}" alt="${text}" title="${title || ''}" style="${style}" />`;
@@ -283,6 +294,112 @@ export const Preview = memo(observer(function Preview({ content }: { content: st
     }
   }, [content, fileType]);
 
+  // Search Highlighting Logic - Runs AFTER content rendering
+  // We separate this from the render effect so it can update when just the query changes
+  // But we also need to ensure it runs after content update. 
+  // Since this effect is defined AFTER the one above, consistent ordering should help,
+  // but we also rely on the fact that if content changes, both fire, 
+  // and we might want to debounce slightly to ensure DOM is ready.
+  useEffect(() => {
+    if (!ref.current) return;
+
+    // Tiny timeout to ensure the render effect has finished DOM manipulation
+    const timer = setTimeout(() => {
+      if (!ref.current) return;
+
+      // 1. Clean up: find all <mark class="search-highlight"> and unwrap them.
+      // This resets the view to "clean" rendered state before applying new search
+      const marks = ref.current.querySelectorAll('mark.search-highlight');
+      marks.forEach(mark => {
+        const parent = mark.parentNode;
+        if (parent) {
+          parent.replaceChild(document.createTextNode(mark.textContent || ''), mark);
+          parent.normalize(); // Merge text nodes
+        }
+      });
+
+      if (!searchQuery) {
+        if (onMatchesFound) onMatchesFound(0);
+        return;
+      }
+
+      let matchCount = 0;
+
+      // Helper to safely highlight text nodes
+      const highlightNode = (node: Node) => {
+        if (node.nodeType === 3) { // Text node
+          const text = node.nodeValue || '';
+          if (!text) return;
+
+          // Case insensitive search
+          const lowerText = text.toLowerCase();
+          const lowerQuery = searchQuery.toLowerCase();
+          const index = lowerText.indexOf(lowerQuery);
+
+          if (index >= 0) {
+            // Found match
+            matchCount++;
+
+            const before = text.substring(0, index);
+            const match = text.substring(index, index + searchQuery.length);
+            const after = text.substring(index + searchQuery.length);
+
+            const beforeNode = document.createTextNode(before);
+            const afterNode = document.createTextNode(after);
+
+            const mark = document.createElement('mark');
+            mark.className = 'search-highlight';
+            // Add inline styles to ensure visibility regardless of CSS issues
+            mark.style.backgroundColor = '#fcd34d'; // yellow-300
+            mark.style.color = 'black';
+            mark.style.borderRadius = '2px';
+            mark.style.padding = '0 2px';
+
+            mark.textContent = match;
+
+            // If this is the current match, highlight it specially
+            if (currentMatchIndex === matchCount) {
+              mark.classList.add('active-match');
+              mark.style.boxShadow = '0 0 0 2px #3b82f6'; // blue-500 ring
+
+              // Scroll into view
+              requestAnimationFrame(() => {
+                mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              });
+            }
+
+            const frag = document.createDocumentFragment();
+            frag.appendChild(beforeNode);
+            frag.appendChild(mark);
+            frag.appendChild(afterNode);
+
+            node.parentNode?.replaceChild(frag, node);
+
+            // Continue highlighting in the 'after' part (Recursion)
+            if (after.toLowerCase().indexOf(lowerQuery) >= 0) {
+              highlightNode(afterNode);
+            }
+          }
+        } else if (node.nodeType === 1) {
+          const el = node as Element;
+          // Skip existing marks or scripts/styles/mermaids
+          if (el.tagName !== 'MARK' && el.tagName !== 'SCRIPT' && el.tagName !== 'STYLE' &&
+            !el.classList.contains('mermaid') && !el.tagName.startsWith('PRE')) {
+            // Note: Arrays.from is important because childNodes is live
+            Array.from(node.childNodes).forEach(highlightNode);
+          }
+        }
+      };
+
+      highlightNode(ref.current);
+
+      if (onMatchesFound) onMatchesFound(matchCount);
+
+    }, 50); // 50ms delay
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, currentMatchIndex, content, fileType]); // Dependencies
+
   const getThemeClass = () => {
     if (!uiStore.markdownTheme || uiStore.markdownTheme === 'default') {
       return 'prose dark:prose-invert max-w-none p-6 md:p-10 lg:p-12';
@@ -296,10 +413,10 @@ export const Preview = memo(observer(function Preview({ content }: { content: st
   } as React.CSSProperties;
 
   return (
-    <div 
-      className={getThemeClass()} 
+    <div
+      className={getThemeClass()}
       style={themeStyles}
-      ref={ref} 
+      ref={ref}
     />
   );
 }));

@@ -60,3 +60,11 @@ Thumbs.db
 dist-electron
 build-electron
 out
+
+# Local Config
+.zhixia-note
+
+# Agent
+.agent
+.trae
+.claude

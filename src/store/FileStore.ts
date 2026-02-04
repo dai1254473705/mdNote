@@ -802,7 +802,7 @@ export class FileStore {
   }
 
   // Batch export notes from a directory
-  async batchExportNotes(directoryPath: string, format: ExportFormat) {
+  async batchExportNotes(directoryPath: string, format: ExportFormat, themeCss?: string, themeClass?: string) {
     const dirNode = this.findNode(this.fileTree, directoryPath);
     if (!dirNode) {
       this.toastStore.error('未找到该文件夹');
@@ -893,7 +893,7 @@ export class FileStore {
           const htmlContent = await marked.parse(content, { renderer }) as string;
           const fileName = file.name.replace('.md', '.html');
           const exportPath = `${exportDir}/${fileName}`;
-          const completeHtml = this.createHtmlDocument(file.name, htmlContent);
+          const completeHtml = this.createHtmlDocument(file.name, htmlContent, themeCss, themeClass);
           const saveRes = await window.electronAPI.exportHtmlDirect(completeHtml, exportPath);
           result = { success: saveRes.success, error: saveRes.error, path: saveRes.data };
         } else {
@@ -901,7 +901,7 @@ export class FileStore {
           const htmlContent = await marked.parse(content, { renderer }) as string;
           const fileName = file.name.replace('.md', '.pdf');
           const exportPath = `${exportDir}/${fileName}`;
-          const completeHtml = this.createPdfHtmlDocument(htmlContent);
+          const completeHtml = this.createPdfHtmlDocument(htmlContent, themeCss, themeClass);
           const saveRes = await window.electronAPI.exportPdfDirect(completeHtml, exportPath);
           result = { success: saveRes.success, error: saveRes.error, path: saveRes.data };
         }
@@ -943,7 +943,10 @@ export class FileStore {
     this.exportStore.closeDialog();
   }
 
-  private createHtmlDocument(title: string, content: string): string {
+  private createHtmlDocument(title: string, content: string, themeCss?: string, themeClass?: string): string {
+    const css = themeCss || '';
+    const wrapperClass = themeClass || 'prose max-w-none';
+
     return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -952,7 +955,8 @@ export class FileStore {
     <title>${title.replace('.md', '')}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 40px 20px; background: #fff; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #333; background: #fff; }
+        .export-container { max-width: 100%; margin: 0 auto; padding: 2em; }
         img { max-width: 100%; height: auto; }
         pre { background: #f6f8fa; padding: 16px; overflow: auto; border-radius: 6px; }
         code { font-family: "SFMono-Regular", Consolas, monospace; font-size: 85%; }
@@ -967,13 +971,25 @@ export class FileStore {
         a { color: #0969da; text-decoration: none; }
         a:hover { text-decoration: underline; }
         .mermaid { text-align: center; margin: 20px 0; }
+        
+        /* Theme Styles */
+        ${css}
     </style>
 </head>
-<body>${content}</body>
+<body>
+  <div class="export-container">
+    <div class="${wrapperClass}">
+      ${content}
+    </div>
+  </div>
+</body>
 </html>`;
   }
 
-  private createPdfHtmlDocument(content: string): string {
+  private createPdfHtmlDocument(content: string, themeCss?: string, themeClass?: string): string {
+    const css = themeCss || '';
+    const wrapperClass = themeClass || 'prose max-w-none';
+
     return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -994,9 +1010,16 @@ export class FileStore {
         h3 { font-size: 1.2em; }
         a { color: #0969da; text-decoration: none; }
         .mermaid { text-align: center; margin: 20px 0; }
+
+        /* Theme Styles */
+        ${css}
     </style>
 </head>
-<body>${content}</body>
+<body>
+  <div class="${wrapperClass}">
+    ${content}
+  </div>
+</body>
 </html>`;
   }
 
