@@ -30,6 +30,8 @@ declare global {
       getGitStatus: () => Promise<IpcResponse<GitStatus>>;
       commitGit: (message: string) => Promise<IpcResponse<GitStatus>>;
       syncGit: () => Promise<IpcResponse<GitStatus>>;
+      pullGit: () => Promise<IpcResponse<GitStatus>>;
+      pushGit: () => Promise<IpcResponse<GitStatus>>;
       cloneGit: (url: string, targetPath: string) => Promise<IpcResponse<string>>;
       initGit: (targetPath: string) => Promise<IpcResponse<void>>;
       addGit: (path: string) => Promise<IpcResponse<void>>;

@@ -26,6 +26,7 @@ export class UIStore {
 
   gridView: boolean = false; // Added missing property just in case, but focusing on defaultViewMode
   defaultViewMode: ViewMode = 'split';
+  isTagDrawerOpen: boolean = false;
 
   constructor() {
     makeAutoObservable(this);
@@ -71,6 +72,14 @@ export class UIStore {
 
   toggleSidebar() {
     this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  setTagDrawerOpen(open: boolean) {
+    this.isTagDrawerOpen = open;
+  }
+
+  toggleTagDrawer() {
+    this.isTagDrawerOpen = !this.isTagDrawerOpen;
   }
 
   setSidebarWidth(width: number) {

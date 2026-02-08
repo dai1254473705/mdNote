@@ -44,6 +44,14 @@ export interface AppConfig {
     enabled: boolean;
     // 注意: 密钥不在此处存储
   };
+
+  // Git 配置
+  git?: GitConfig;
+}
+
+export interface GitConfig {
+  autoSync: boolean;
+  autoSyncInterval: number; // 单位：分钟
 }
 
 // Git 同步状态

@@ -87,51 +87,37 @@ export class TagStore {
   }
 
   // Parse tags from markdown content
-  // Supports both frontmatter tags and inline #tag syntax
+  // Strict mode: Only parses frontmatter tags in the format `tags: [tag1, tag2]`
   parseTagsFromContent(content: string): string[] {
-    const tags = new Set<string>();
-
-    // Parse frontmatter tags
-    const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
-    if (frontmatterMatch) {
-      const frontmatter = frontmatterMatch[1];
-      // Match tags: - tag or tags: [tag1, tag2] or tags: tag1, tag2
-      const tagsMatch = frontmatter.match(/tags:\s*\[([^\]]+)\]|tags:\s*(.+)|-\s*(.+)/g);
-      if (tagsMatch) {
-        tagsMatch.forEach(match => {
-          const values = match
-            .replace(/tags:\s*\[|\]|\n|tags:\s*|-\s*/g, '')
-            .split(/[,\s]+/)
-            .filter(t => t.trim())
-            .map(t => t.replace(/^["']|["']$/g, '').trim());
-          values.forEach(v => v && tags.add(v));
-        });
-      }
+    // 1. 强制匹配文件内容开头就是 "---"
+    if (!content.startsWith('---')) {
+      return [];
     }
 
-    // Parse inline tags (#tag but not in code blocks)
-    const lines = content.split('\n');
-    let inCodeBlock = false;
-    for (const line of lines) {
-      // Check for code block boundaries
-      if (line.trim().startsWith('```')) {
-        inCodeBlock = !inCodeBlock;
-        continue;
-      }
-      if (inCodeBlock) continue;
-
-      // Find tags at the end of line or standalone
-      const tagMatches = line.matchAll(/(?<=\s|^)#([a-zA-Z\u4e00-\u9fa5][a-zA-Z0-9\u4e00-\u9fa5_-]*)/g);
-      for (const match of tagMatches) {
-        const tag = match[1];
-        // Skip common markdown elements
-        if (!/^h[1-6]$/i.test(tag) && !match.index) {
-          tags.add(tag);
-        }
-      }
+    // 2. 匹配 Frontmatter 区块 (--- ... ---)
+    const match = content.match(/^---\n([\s\S]*?)\n---/);
+    if (!match) {
+      return [];
     }
 
-    return Array.from(tags);
+    const frontmatter = match[1];
+
+    // 3. 匹配 tags 及其 [] 里面的标签
+    // 寻找 `tags: [...]` 格式
+    const tagsMatch = frontmatter.match(/tags:\s*\[(.*?)\]/);
+    if (!tagsMatch) {
+      return [];
+    }
+
+    const tagsContent = tagsMatch[1];
+
+    // 解析括号内的标签，按逗号分割
+    const tags = tagsContent
+      .split(/[,，]/) // 支持中英文逗号
+      .map(t => t.trim().replace(/^["']|["']$/g, '')) // 去除首尾空格和引号
+      .filter(t => t.length > 0); // 过滤空值
+
+    return tags;
   }
 
   // Update tags for a file

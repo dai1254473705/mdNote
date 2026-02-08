@@ -1,4 +1,5 @@
 import { observer } from 'mobx-react-lite';
+import { TrashDialog } from './components/TrashDialog'; // Correct import path if needed, check where TrashDialog is
 import { Toolbar } from './components/Toolbar';
 import Sidebar from './components/Sidebar';
 import Editor from './components/Editor';
@@ -25,6 +26,7 @@ const AppContent = observer(() => {
   const [showHelp, setShowHelp] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
   const [showPasswordManager, setShowPasswordManager] = useState(false);
+  const [showTrashDialog, setShowTrashDialog] = useState(false);
 
   useEffect(() => {
     uiStore.initTheme();
@@ -150,7 +152,12 @@ const AppContent = observer(() => {
             onPasswordManagerClick={() => setShowPasswordManager(true)}
           />
           <div className="flex-1 flex overflow-hidden">
-            <Sidebar />
+            <Sidebar
+              onHelpClick={() => setShowHelp(true)}
+              onScheduleClick={() => setShowSchedule(true)}
+              onPasswordManagerClick={() => setShowPasswordManager(true)}
+              onTrashClick={() => setShowTrashDialog(true)}
+            />
             <Editor />
           </div>
           <SchedulePanel isOpen={showSchedule} onClose={() => setShowSchedule(false)} />
@@ -183,6 +190,12 @@ const AppContent = observer(() => {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
+      {/* Trash Dialog */}
+      <TrashDialog
+        isOpen={showTrashDialog}
+        onClose={() => setShowTrashDialog(false)}
+      />
     </>
   );
 });

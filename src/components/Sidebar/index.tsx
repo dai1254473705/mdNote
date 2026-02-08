@@ -13,7 +13,6 @@ import {
   FolderPlus,
   FilePlus,
   Edit2,
-  Home,
   ExternalLink,
   ChevronRight,
   RotateCw,
@@ -27,12 +26,23 @@ import {
   StarOff,
   SortAsc,
   SortDesc,
-  Tag as TagIcon
+  Calendar,
+  Key,
+  HelpCircle,
+  Wrench,
+  Trash2
 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { ExportProgressDialog } from '../ExportProgressDialog';
 import { TagDrawer } from '../TagDrawer';
+
+interface SidebarProps {
+  onHelpClick: () => void;
+  onScheduleClick: () => void;
+  onPasswordManagerClick: () => void;
+  onTrashClick: () => void;
+}
 
 // Create context for expand/collapse state
 
@@ -574,13 +584,13 @@ const SearchResultItem = observer(({ result }: { result: { path: string; name: s
   );
 });
 
-export const Sidebar = observer(() => {
-  const { fileStore, uiStore, tagStore } = useStore();
+export const Sidebar = observer(({ onHelpClick, onScheduleClick, onPasswordManagerClick, onTrashClick }: SidebarProps) => {
+  const { uiStore, fileStore } = useStore();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
   // const [expandAll, setExpandAll] = useState<boolean | 'level1' | null>(null); // Removed
   const [favoritesExpanded, setFavoritesExpanded] = useState(true);
-  const [tagDrawerOpen, setTagDrawerOpen] = useState(false);
+  const [toolboxExpanded, setToolboxExpanded] = useState(false);
 
   // 拖拽调整宽度
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -631,7 +641,7 @@ export const Sidebar = observer(() => {
       {/* Header */}
       <div className="h-16 px-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <img src={logo} alt="Logo" className="w-10 h-10 shrink-0 dark:brightness-0 dark:invert" />
+          <img src={logo} alt="Logo" className="w-8 h-8 shrink-0 dark:brightness-0 dark:invert" />
           <span className="font-bold text-lg text-gray-700 dark:text-gray-200 truncate">知夏笔记</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -676,6 +686,40 @@ export const Sidebar = observer(() => {
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
 
+          {/* New Note/Folder Dropdown */}
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button
+                className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 rounded transition-colors"
+                title="新建"
+              >
+                <Plus size={16} />
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[160px] z-50"
+                align="end"
+                sideOffset={5}
+              >
+                <DropdownMenu.Item
+                  className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors flex items-center gap-2"
+                  onSelect={() => fileStore.createFile(fileStore.rootPath, 'New Note.md')}
+                >
+                  <FilePlus size={14} />
+                  新建笔记
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors flex items-center gap-2"
+                  onSelect={() => fileStore.createDir(fileStore.rootPath, 'New Folder')}
+                >
+                  <FolderPlus size={14} />
+                  新建文件夹
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+
           <button
             onClick={() => fileStore.loadFileTree()}
             className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 rounded transition-colors"
@@ -683,19 +727,14 @@ export const Sidebar = observer(() => {
           >
             <RotateCw size={16} className={fileStore.isLoading ? "animate-spin" : ""} />
           </button>
+
+          {/* Help Button */}
           <button
-            onClick={() => uiStore.resetProject()}
+            onClick={onHelpClick}
             className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 rounded transition-colors"
-            title="切换项目"
+            title="帮助文档"
           >
-            <Home size={16} />
-          </button>
-          <button
-            onClick={() => fileStore.createFile(fileStore.rootPath, 'New Note.md')}
-            className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 rounded transition-colors"
-            title="新建笔记"
-          >
-            <Plus size={16} />
+            <HelpCircle size={16} />
           </button>
         </div>
       </div>
@@ -712,6 +751,48 @@ export const Sidebar = observer(() => {
             onChange={(e) => fileStore.setSearchQuery(e.target.value)}
           />
         </div>
+      </div>
+
+      {/* Function Toolbox (Collapsible) */}
+      <div className="shrink-0 border-b border-gray-200 dark:border-gray-800">
+        <div
+          className="flex items-center px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors select-none group"
+          onClick={() => setToolboxExpanded(!toolboxExpanded)}
+        >
+          <Wrench size={14} className="mr-2 text-blue-500" />
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 flex-1">
+            功能百宝箱
+          </span>
+          <ChevronRight
+            size={12}
+            className={cn("text-gray-400 transition-transform", toolboxExpanded ? "rotate-90" : "")}
+          />
+        </div>
+        {toolboxExpanded && (
+          <div className="pb-2">
+            <div
+              className="flex items-center pl-9 pr-3 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs transition-colors"
+              onClick={onScheduleClick}
+            >
+              <Calendar size={14} className="mr-2 text-blue-500" />
+              日程清单
+            </div>
+            <div
+              className="flex items-center pl-9 pr-3 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs transition-colors"
+              onClick={onPasswordManagerClick}
+            >
+              <Key size={14} className="mr-2 text-amber-500" />
+              密码管理器
+            </div>
+            <div
+              className="flex items-center pl-9 pr-3 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs transition-colors"
+              onClick={onTrashClick}
+            >
+              <Trash2 size={14} className="mr-2 text-gray-500" />
+              回收站
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto py-2 custom-scrollbar min-w-0">
@@ -769,22 +850,6 @@ export const Sidebar = observer(() => {
               </>
             )}
 
-            {/* Tags Section - Compact button to open drawer */}
-            <div
-              className="mx-2 mb-2 flex items-center px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors select-none rounded-lg"
-              onClick={() => setTagDrawerOpen(true)}
-            >
-              <TagIcon size={14} className="mr-2 text-primary" />
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 flex-1">
-                标签 ({tagStore.getAllTags().length})
-              </span>
-              {tagStore.selectedTag && (
-                <span className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-full">
-                  {tagStore.selectedTag}
-                </span>
-              )}
-            </div>
-
             {/* File Tree */}
             {fileStore.filteredFiles.length === 0 && !fileStore.isLoading ? (
               <div className="text-center text-xs text-gray-400 mt-10 px-2">
@@ -814,8 +879,11 @@ export const Sidebar = observer(() => {
         onClose={fileStore.closeExportDialog.bind(fileStore)}
       />
 
-      {/* Tag Drawer */}
-      <TagDrawer isOpen={tagDrawerOpen} onClose={() => setTagDrawerOpen(false)} />
+      {/* Tag Drawer managed by UIStore */}
+      <TagDrawer
+        isOpen={uiStore.isTagDrawerOpen}
+        onClose={() => uiStore.setTagDrawerOpen(false)}
+      />
     </div>
   );
 });

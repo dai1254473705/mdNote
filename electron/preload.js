@@ -29,6 +29,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getGitStatus: () => ipcRenderer.invoke('git:status'),
   commitGit: (message) => ipcRenderer.invoke('git:commit', message),
   syncGit: () => ipcRenderer.invoke('git:sync'),
+  pullGit: () => ipcRenderer.invoke('git:pull'),
+  pushGit: () => ipcRenderer.invoke('git:push'),
   cloneGit: (url, targetPath) => ipcRenderer.invoke('git:clone', url, targetPath),
   initGit: (targetPath) => ipcRenderer.invoke('git:init', targetPath),
   addGit: (path) => ipcRenderer.invoke('git:add', path),

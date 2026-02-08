@@ -1,25 +1,21 @@
 import type { ThemeMode } from '../types';
 import { observer } from 'mobx-react-lite';
 import { useStore } from '../store';
-import { RefreshCw, Check, AlertCircle, Sun, Moon, Monitor, Palette, Eye, Edit3, Columns, FolderOpen, Calendar, Key, Keyboard as KeyboardIcon, Trash2, MoreHorizontal, HelpCircle } from 'lucide-react';
+import { RefreshCw, Check, AlertCircle, Sun, Moon, Monitor, Palette, Eye, Edit3, Columns, FolderOpen, Keyboard as KeyboardIcon, MoreHorizontal, Settings2, Home, Tag as TagIcon } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { cn } from '../utils/cn';
 import { THEME_COLORS } from '../constants/theme';
 import { useState } from 'react';
 import { KeyboardShortcutDialog } from './KeyboardShortcutDialog';
-import { TrashDialog } from './TrashDialog';
+import { GitSettingsDialog } from './GitSettingsDialog';
 
-interface ToolbarProps {
-  onHelpClick?: () => void;
-  onScheduleClick?: () => void;
-  onPasswordManagerClick?: () => void;
-}
+interface ToolbarProps { }
 
-export const Toolbar = observer(({ onHelpClick, onScheduleClick, onPasswordManagerClick }: ToolbarProps) => {
-  const { gitStore, uiStore, fileStore, scheduleStore, trashStore } = useStore();
+export const Toolbar = observer(({ }: ToolbarProps) => {
+  const { gitStore, uiStore, fileStore } = useStore();
 
   const [isKeyboardShortcutOpen, setIsKeyboardShortcutOpen] = useState(false);
-  const [isTrashDialogOpen, setIsTrashDialogOpen] = useState(false);
+  const [isGitSettingsOpen, setIsGitSettingsOpen] = useState(false);
 
   const handleSync = () => {
     gitStore.sync();
@@ -34,9 +30,23 @@ export const Toolbar = observer(({ onHelpClick, onScheduleClick, onPasswordManag
           className: "text-amber-600 bg-amber-50 dark:bg-amber-900/10"
         };
       }
+      if (gitStore.syncStep === 'pulling') {
+        return {
+          icon: <RefreshCw size={15} className="animate-spin text-blue-500" />,
+          text: '正在拉取...',
+          className: "text-blue-600 bg-blue-50 dark:bg-blue-900/10"
+        };
+      }
+      if (gitStore.syncStep === 'pushing') {
+        return {
+          icon: <RefreshCw size={15} className="animate-spin text-primary" />,
+          text: '正在推送...',
+          className: "text-primary bg-primary/10"
+        };
+      }
       return {
         icon: <RefreshCw size={15} className="animate-spin text-primary" />,
-        text: 'Pushing...',
+        text: '正在同步...',
         className: "text-primary bg-primary/10"
       };
     }
@@ -76,6 +86,15 @@ export const Toolbar = observer(({ onHelpClick, onScheduleClick, onPasswordManag
 
 
 
+  /* Open Log Directory moved to dropdown, new handler for reveal file */
+  const handleShowFileInFolder = async () => {
+    if (fileStore.currentFile) {
+      await window.electronAPI.showItemInFolder(fileStore.currentFile.path);
+    } else if (fileStore.rootPath) {
+      await window.electronAPI.showItemInFolder(fileStore.rootPath);
+    }
+  };
+
   const handleOpenLogDirectory = async () => {
     const res = await window.electronAPI.openLogDirectory();
     if (!res.success) {
@@ -88,6 +107,16 @@ export const Toolbar = observer(({ onHelpClick, onScheduleClick, onPasswordManag
       <div className="h-11 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center justify-between px-4 shrink-0 z-10 pl-24">
         {/* Left: Brand */}
         <div className="flex items-center gap-2 font-medium text-gray-700 dark:text-gray-200 select-none">
+          <button
+            onClick={() => uiStore.resetProject()}
+            className="p-1 px-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-primary rounded transition-colors flex items-center gap-1"
+            title="切换项目"
+          >
+            <Home size={16} />
+          </button>
+
+          <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 mx-1" />
+
           {fileStore.projectName && (
             <div className="flex items-center gap-2 px-2">
               <span className="text-sm text-gray-400 dark:text-gray-500">/</span>
@@ -140,112 +169,77 @@ export const Toolbar = observer(({ onHelpClick, onScheduleClick, onPasswordManag
           </div>
 
           {/* ===== Group 2: Sync Status ===== */}
-          <button
-            onClick={handleSync}
-            disabled={gitStore.isSyncing}
-            className={cn(
-              "flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-all duration-200 mr-1",
-              statusUI.className
-            )}
-            title={gitStore.status.errorMessage || `最后同步: ${gitStore.status.lastSyncTime ? new Date(gitStore.status.lastSyncTime).toLocaleTimeString() : '从未同步'}`}
-          >
-            {statusUI.icon}
-            <span className="hidden sm:inline">{statusUI.text}</span>
-          </button>
+          {/* ===== Group 2: Sync Status ===== */}
+          <div className="flex items-center mr-2 rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 h-8">
+            <button
+              onClick={handleSync}
+              disabled={gitStore.isSyncing}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 h-full text-xs font-medium transition-all duration-200",
+                statusUI.className
+              )}
+              title={gitStore.status.errorMessage || `最后同步: ${gitStore.status.lastSyncTime ? new Date(gitStore.status.lastSyncTime).toLocaleTimeString() : '从未同步'}`}
+            >
+              {statusUI.icon}
+              <span className="hidden sm:inline">{statusUI.text}</span>
+            </button>
+            <div className="w-[1px] h-full bg-gray-200 dark:bg-gray-700" />
+            <button
+              onClick={() => setIsGitSettingsOpen(true)}
+              className="px-2 h-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700 transition-colors"
+              title="Git 设置"
+            >
+              <Settings2 size={13} />
+            </button>
+          </div>
+
+          {/* ===== Group 3: Tag Management ===== */}
+          {/* ===== Group 3: Tag Management ===== */}
+          <div className="flex items-center mr-2 rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 h-8">
+            <button
+              onClick={() => uiStore.setTagDrawerOpen(true)}
+              className={cn(
+                "h-full px-2.5 flex items-center justify-center transition-all",
+                uiStore.isTagDrawerOpen
+                  ? "bg-primary/10 text-primary"
+                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+              )}
+              title="标签管理"
+            >
+              <TagIcon size={14} />
+              <span className="hidden lg:inline ml-1.5 text-xs font-medium">标签</span>
+            </button>
+            <div className="w-[1px] h-full bg-gray-200 dark:bg-gray-700" />
+            <button
+              onClick={async () => {
+                if (fileStore.tagStore && fileStore.fileTree) {
+                  // Wrap readFile to extract data string from response object
+                  const readFileWrapper = async (path: string) => {
+                    const res = await window.electronAPI.readFile(path);
+                    return res.success ? (res.data || '') : '';
+                  };
+                  await fileStore.tagStore.buildIndex(fileStore.fileTree, readFileWrapper);
+                  fileStore.toastStore?.success('标签已刷新');
+                }
+              }}
+              className={cn(
+                "h-full px-2 transition-colors flex items-center justify-center",
+                fileStore.tagStore?.isLoading
+                  ? "cursor-wait text-primary"
+                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700"
+              )}
+              title="刷新标签"
+              disabled={fileStore.tagStore?.isLoading}
+            >
+              <RefreshCw size={13} className={cn(fileStore.tagStore?.isLoading && "animate-spin")} />
+            </button>
+          </div>
 
 
 
-          {/* ===== Group 4: More Tools ===== */}
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger asChild>
-              <button
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors text-gray-500 hover:text-primary mr-0.5"
-                title="更多工具"
-              >
-                <MoreHorizontal size={16} />
-              </button>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.Content
-                className="min-w-[160px] bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 p-1 z-50 animate-in fade-in zoom-in-95 duration-100"
-                align="end"
-                sideOffset={5}
-              >
-                <DropdownMenu.Item
-                  className="flex items-center px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded outline-none"
-                  onSelect={() => setIsKeyboardShortcutOpen(true)}
-                >
-                  <KeyboardIcon size={14} className="mr-2 text-gray-500" />
-                  快捷键设置
-                </DropdownMenu.Item>
-                <DropdownMenu.Item
-                  className="flex items-center px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded outline-none"
-                  onSelect={handleOpenLogDirectory}
-                >
-                  <FolderOpen size={14} className="mr-2 text-gray-500" />
-                  打开日志目录
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Root>
 
-          {/* ===== Group 5: Quick Actions ===== */}
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger asChild>
-              <button
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors text-gray-500 hover:text-primary relative mr-0.5"
-                title="快捷功能"
-              >
-                <Calendar size={16} />
-                {(scheduleStore.overdueCount > 0 || (trashStore && trashStore.trashCount > 0)) && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-                )}
-              </button>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.Content
-                className="min-w-[160px] bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 p-1 z-50 animate-in fade-in zoom-in-95 duration-100"
-                align="end"
-                sideOffset={5}
-              >
-                <DropdownMenu.Item
-                  className="flex items-center px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded outline-none"
-                  onSelect={onScheduleClick}
-                >
-                  <Calendar size={14} className="mr-2 text-blue-500" />
-                  日程清单
-                  {scheduleStore.overdueCount > 0 && (
-                    <span className="ml-auto w-2 h-2 bg-red-500 rounded-full" />
-                  )}
-                </DropdownMenu.Item>
-                <DropdownMenu.Item
-                  className="flex items-center px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded outline-none"
-                  onSelect={onPasswordManagerClick}
-                >
-                  <Key size={14} className="mr-2 text-amber-500" />
-                  密码管理器
-                </DropdownMenu.Item>
-                <DropdownMenu.Item
-                  className="flex items-center px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded outline-none"
-                  onSelect={() => setIsTrashDialogOpen(true)}
-                >
-                  <Trash2 size={14} className="mr-2 text-gray-500" />
-                  回收站
-                  {trashStore && trashStore.trashCount > 0 && (
-                    <span className="ml-auto w-2 h-2 bg-red-500 rounded-full" />
-                  )}
-                </DropdownMenu.Item>
-                <DropdownMenu.Separator className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
-                <DropdownMenu.Item
-                  className="flex items-center px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded outline-none"
-                  onClick={onHelpClick}
-                >
-                  <HelpCircle size={14} className="mr-2 text-gray-500" />
-                  帮助文档
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Root>
+
+
 
           {/* ===== Group 6: Theme ===== */}
           <DropdownMenu.Root>
@@ -378,6 +372,49 @@ export const Toolbar = observer(({ onHelpClick, onScheduleClick, onPasswordManag
               </DropdownMenu.Content>
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
+
+          {/* ===== Show File in Folder ===== */}
+          <button
+            onClick={handleShowFileInFolder}
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors text-gray-500 hover:text-primary mr-0.5"
+            title="打开当前文件所在位置"
+          >
+            <FolderOpen size={16} />
+          </button>
+
+          {/* ===== More Tools ===== */}
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors text-gray-500 hover:text-primary"
+                title="更多工具"
+              >
+                <MoreHorizontal size={16} />
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                className="min-w-[160px] bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 p-1 z-50 animate-in fade-in zoom-in-95 duration-100"
+                align="end"
+                sideOffset={5}
+              >
+                <DropdownMenu.Item
+                  className="flex items-center px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded outline-none"
+                  onSelect={() => setIsKeyboardShortcutOpen(true)}
+                >
+                  <KeyboardIcon size={14} className="mr-2 text-gray-500" />
+                  快捷键设置
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  className="flex items-center px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded outline-none"
+                  onSelect={handleOpenLogDirectory}
+                >
+                  <FolderOpen size={14} className="mr-2 text-gray-500" />
+                  打开日志目录
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
         </div>
       </div >
 
@@ -387,11 +424,13 @@ export const Toolbar = observer(({ onHelpClick, onScheduleClick, onPasswordManag
         onClose={() => setIsKeyboardShortcutOpen(false)}
       />
 
-      {/* Trash Dialog */}
-      <TrashDialog
-        isOpen={isTrashDialogOpen}
-        onClose={() => setIsTrashDialogOpen(false)}
+      {/* Git Settings Dialog */}
+      <GitSettingsDialog
+        open={isGitSettingsOpen}
+        onOpenChange={setIsGitSettingsOpen}
       />
+
+
     </>
   );
 });

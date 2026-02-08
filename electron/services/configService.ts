@@ -17,6 +17,10 @@ const DEFAULT_CONFIG: AppConfig = {
   recentProjects: [],
   encryption: {
     enabled: false
+  },
+  git: {
+    autoSync: false,
+    autoSyncInterval: 30 // Default 30 minutes
   }
 };
 

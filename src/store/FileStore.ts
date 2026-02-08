@@ -279,6 +279,17 @@ export class FileStore {
           this.rootPath = configRes.data!.repoPath;
         }
       });
+
+      // Initial tag index build
+      if (this.tagStore) {
+        // Wrap readFile to extract data string from response object
+        const readFileWrapper = async (path: string) => {
+          const res = await window.electronAPI.readFile(path);
+          return res.success ? (res.data || '') : '';
+        };
+        // Don't await this, let it run in background
+        this.tagStore.buildIndex(this.fileTree, readFileWrapper).catch(console.error);
+      }
     } catch (error) {
       console.error('Failed to load file tree:', error);
     } finally {
@@ -446,6 +457,12 @@ export class FileStore {
       if (this.gitStore) {
         this.gitStore.checkStatus();
       }
+
+      // Update tags for this file if TagStore is available
+      if (this.tagStore) {
+        const tags = this.tagStore.parseTagsFromContent(contentToSave);
+        this.tagStore.updateFileTags(this.currentFile.path, tags);
+      }
     } catch (error) {
       console.error('Failed to save file:', error);
       throw error;
@@ -456,7 +473,7 @@ export class FileStore {
     }
   }
 
-  // 更新文档元信息（创建时间、更新时间、笔记本）
+  // 更新文档元信息（创建时间、更新时间、笔记本、标签）
   private updateDocumentMetadata(content: string, filePath: string): string {
     const now = new Date();
     const updateTime = this.formatDateTime(now);
@@ -471,11 +488,16 @@ export class FileStore {
 
     if (frontmatterMatch) {
       // 已有 frontmatter，重建为标准格式
-      const createTimeMatch = frontmatterMatch[1].match(/创建时间:\s*(.+)/);
+      const frontmatterContent = frontmatterMatch[1];
+      const createTimeMatch = frontmatterContent.match(/创建时间:\s*(.+)/);
       const createTime = createTimeMatch ? createTimeMatch[1] : updateTime;
 
-      // 构建新的 frontmatter，只包含这三个字段
-      const newFrontmatter = `---\n创建时间: ${createTime}\n更新时间: ${updateTime}\n笔记本: ${folderName}\n---`;
+      // 提取现有标签
+      const tagsMatch = frontmatterContent.match(/tags:\s*\[(.*?)\]/);
+      const tagsLine = tagsMatch ? tagsMatch[0] : 'tags: []';
+
+      // 构建新的 frontmatter，包含这四个字段
+      const newFrontmatter = `---\n创建时间: ${createTime}\n更新时间: ${updateTime}\n笔记本: ${folderName}\n${tagsLine}\n---`;
 
       return content.replace(/^---\n[\s\S]*?\n---/, newFrontmatter);
     }
@@ -509,7 +531,7 @@ export class FileStore {
         title = fileName.replace('.md', '');
       }
 
-      const frontmatter = `---\n创建时间: ${createTime}\n更新时间: ${updateTime}\n笔记本: ${folderName}\n---\n\n# ${title}\n\n`;
+      const frontmatter = `---\n创建时间: ${createTime}\n更新时间: ${updateTime}\n笔记本: ${folderName}\ntags: []\n---\n\n# ${title}\n\n`;
 
       return frontmatter + contentStart;
     }
@@ -526,7 +548,7 @@ export class FileStore {
       title = fileName.replace('.md', '');
     }
 
-    const frontmatter = `---\n创建时间: ${updateTime}\n更新时间: ${updateTime}\n笔记本: ${folderName}\n---\n\n# ${title}\n\n`;
+    const frontmatter = `---\n创建时间: ${updateTime}\n更新时间: ${updateTime}\n笔记本: ${folderName}\ntags: []\n---\n\n# ${title}\n\n`;
 
     return frontmatter + contentStart.trimStart();
   }

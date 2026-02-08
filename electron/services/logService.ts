@@ -4,7 +4,7 @@ import path from 'path';
 import { app } from 'electron';
 
 class LogService {
-  private logPath: string;
+  private logPath: string = '';
   private logQueue: string[] = [];
   private isWriting: boolean = false;
   private currentSessionLogPath: string = '';
@@ -14,32 +14,61 @@ class LogService {
   constructor() {
     // Get log path from config or use default
     const defaultLogDir = path.join(app.getPath('userData'), 'logs');
-    this.logPath = path.join(defaultLogDir, 'zhixia.log');
-    this.ensureLogDirectory();
+    // Initialize logPath immediately to satisfy TS
+    this.logPath = path.join(defaultLogDir, this.getTodayLogFileName());
+
+    this.ensureLogDirectory(defaultLogDir);
+    // updateLogPath is redundant here since we just set it, but good for consistency if date changes during runtime
+    this.updateLogPath(defaultLogDir);
+
     this.startNewSession();
     this.processQueue();
   }
 
-  private ensureLogDirectory() {
+  // ... (previous methods)
+
+  // Get all log files in the log directory
+  async getAllLogFiles(): Promise<string[]> {
     try {
       const logDir = path.dirname(this.logPath);
-      if (!fs.existsSync(logDir)) {
-        fs.mkdirSync(logDir, { recursive: true });
+
+      const files = await fsPromises.readdir(logDir);
+      return files
+        .filter(f => f.startsWith('zhixia-') && f.endsWith('.log'))
+        .sort((a, b) => b.localeCompare(a)) // Sort newest first
+        .map(f => path.join(logDir, f));
+    } catch {
+      return [this.logPath];
+    }
+  }
+
+  private ensureLogDirectory(dir: string) {
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
       }
     } catch (e) {
       console.error('Failed to create log directory:', e);
     }
   }
 
+  private getTodayLogFileName(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `zhixia-${year}-${month}-${day}.log`;
+  }
+
+  private updateLogPath(logDir: string) {
+    this.logPath = path.join(logDir, this.getTodayLogFileName());
+  }
+
   private startNewSession() {
     try {
-      // Check if current log file is too large
-      if (fs.existsSync(this.logPath)) {
-        const stats = fs.statSync(this.logPath);
-        if (stats.size > this.maxLogFileSize) {
-          this.rotateLogs();
-        }
-      }
+      // Refresh log path in case date changed
+      const logDir = path.dirname(this.logPath);
+      this.updateLogPath(logDir);
 
       // Create session marker
       const sessionMarker = `\n\n========== Session Start: ${new Date().toISOString()} ==========\n`;
@@ -50,37 +79,9 @@ class LogService {
     }
   }
 
+  // File rotation is no longer needed with daily logs
   private rotateLogs() {
-    try {
-      const logDir = path.dirname(this.logPath);
-      const baseName = path.basename(this.logPath, path.extname(this.logPath));
-      const ext = path.extname(this.logPath);
-
-      // Remove oldest log if we have too many
-      for (let i = this.maxLogFiles - 1; i >= 1; i--) {
-        const oldLog = path.join(logDir, `${baseName}.${i}${ext}`);
-        if (fs.existsSync(oldLog)) {
-          fs.unlinkSync(oldLog);
-        }
-      }
-
-      // Rotate existing logs: .4 -> .5, .3 -> .4, etc.
-      for (let i = this.maxLogFiles - 2; i >= 1; i--) {
-        const oldLog = path.join(logDir, `${baseName}.${i}${ext}`);
-        const newLog = path.join(logDir, `${baseName}.${i + 1}${ext}`);
-        if (fs.existsSync(oldLog)) {
-          fs.renameSync(oldLog, newLog);
-        }
-      }
-
-      // Move current log to .1
-      if (fs.existsSync(this.logPath)) {
-        const rotatedLog = path.join(logDir, `${baseName}.1${ext}`);
-        fs.renameSync(this.logPath, rotatedLog);
-      }
-    } catch (e) {
-      console.error('Failed to rotate logs:', e);
-    }
+    // No-op
   }
 
   private writeSync(msg: string) {
@@ -145,22 +146,7 @@ class LogService {
     return this.logPath;
   }
 
-  // Get all log files in the log directory
-  async getAllLogFiles(): Promise<string[]> {
-    try {
-      const logDir = path.dirname(this.logPath);
-      const baseName = path.basename(this.logPath, path.extname(this.logPath));
-      const ext = path.extname(this.logPath);
 
-      const files = await fsPromises.readdir(logDir);
-      return files
-        .filter(f => f.startsWith(baseName))
-        .sort((a, b) => a.localeCompare(b))
-        .map(f => path.join(logDir, f));
-    } catch {
-      return [this.logPath];
-    }
-  }
 
   // Set custom log path (restart required)
   async setLogPath(newPath: string): Promise<boolean> {

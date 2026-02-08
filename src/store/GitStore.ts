@@ -13,9 +13,10 @@ export class GitStore {
     files: {}
   };
   isSyncing: boolean = false;
-  syncStep: 'idle' | 'committing' | 'syncing' = 'idle';
+  syncStep: 'idle' | 'committing' | 'syncing' | 'pulling' | 'pushing' = 'idle';
   autoSyncIntervalId: ReturnType<typeof setInterval> | null = null;
   checkStatusIntervalId: ReturnType<typeof setInterval> | null = null;
+  autoSyncConfig: { enabled: boolean; interval: number } = { enabled: false, interval: 30 };
 
   private toastStore: ToastStore;
   private uiStore?: UIStore;
@@ -25,8 +26,55 @@ export class GitStore {
     this.toastStore = toastStore;
     this.uiStore = uiStore;
     this.startStatusLoop();
-    // 移除自动同步循环，改为手动同步
-    // this.startAutoSyncLoop();
+    this.startStatusLoop();
+    this.loadConfig();
+  }
+
+  async loadConfig() {
+    try {
+      const res = await window.electronAPI.getConfig();
+      if (res.success && res.data && res.data.git) {
+        const gitConfig = res.data.git;
+        runInAction(() => {
+          this.autoSyncConfig = {
+            enabled: gitConfig.autoSync,
+            interval: gitConfig.autoSyncInterval
+          };
+        });
+        if (this.autoSyncConfig.enabled) {
+          this.startAutoSyncLoop();
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load git config', e);
+    }
+  }
+
+  updateAutoSyncConfig(enabled: boolean, interval: number) {
+    runInAction(() => {
+      this.autoSyncConfig = { enabled, interval };
+    });
+
+    // Save to config
+    window.electronAPI.getConfig().then(res => {
+      if (res.success && res.data) {
+        const newConfig = { ...res.data, git: { autoSync: enabled, autoSyncInterval: interval } };
+        window.electronAPI.saveConfig(newConfig);
+      }
+    });
+
+    if (enabled) {
+      this.startAutoSyncLoop();
+    } else {
+      this.stopAutoSyncLoop();
+    }
+  }
+
+  stopAutoSyncLoop() {
+    if (this.autoSyncIntervalId) {
+      clearInterval(this.autoSyncIntervalId);
+      this.autoSyncIntervalId = null;
+    }
   }
 
   // Poll status every 30s (reduced from 10s for better performance)
@@ -37,11 +85,17 @@ export class GitStore {
     }, 30000);
   }
 
-  // Auto sync every 5 mins (reduced from 2 mins to reduce background activity)
+  // Auto sync based on config interval
   startAutoSyncLoop() {
+    this.stopAutoSyncLoop(); // Clear existing
+    if (!this.autoSyncConfig.enabled) return;
+
+    const intervalMs = this.autoSyncConfig.interval * 60 * 1000;
+    console.log(`Starting auto sync loop every ${this.autoSyncConfig.interval} mins (${intervalMs}ms)`);
+
     this.autoSyncIntervalId = setInterval(() => {
       this.autoSync();
-    }, 300000);
+    }, intervalMs);
   }
 
   async checkStatus() {
@@ -59,7 +113,7 @@ export class GitStore {
 
   async autoSync() {
     if (this.isSyncing) return;
-    
+
     // Refresh status first
     await this.checkStatus();
 
@@ -74,7 +128,7 @@ export class GitStore {
   async handleFullSync(commitMessage: string, silent: boolean = false) {
     if (this.isSyncing) return;
     this.isSyncing = true;
-    
+
     try {
       // 1. Commit
       if (this.status.modified && this.status.modified > 0) {
@@ -85,26 +139,26 @@ export class GitStore {
       // 2. Sync (Pull & Push)
       runInAction(() => this.syncStep = 'syncing');
       await this.syncInternal();
-      
+
       if (!silent) {
         this.toastStore.success('Sync completed successfully');
       }
 
     } catch (error) {
-       console.error('Full sync failed:', error);
-       if (!silent) {
-         const errorMessage = error instanceof Error ? error.message : String(error);
-         this.toastStore.error(`Sync failed: ${errorMessage}`, 10000);
+      console.error('Full sync failed:', error);
+      if (!silent) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.toastStore.error(`Sync failed: ${errorMessage}`, 10000);
 
-         // Show detailed error dialog
-         if (this.uiStore) {
-           this.uiStore.showErrorDialog(
-             '同步失败',
-             errorMessage,
-             error instanceof Error ? error.stack : String(error)
-           );
-         }
-       }
+        // Show detailed error dialog
+        if (this.uiStore) {
+          this.uiStore.showErrorDialog(
+            '同步失败',
+            errorMessage,
+            error instanceof Error ? error.stack : String(error)
+          );
+        }
+      }
     } finally {
       runInAction(() => {
         this.isSyncing = false;
@@ -137,8 +191,8 @@ export class GitStore {
 
     // Check if we have unsaved changes first
     if (this.status.modified && this.status.modified > 0) {
-        await this.handleFullSync('Manual sync: ' + new Date().toLocaleString(), silent);
-        return;
+      await this.handleFullSync('Manual sync: ' + new Date().toLocaleString(), silent);
+      return;
     }
 
     this.isSyncing = true;
@@ -204,14 +258,18 @@ export class GitStore {
 
   private async syncInternal() {
     try {
-      const res = await window.electronAPI.syncGit();
-      if (res.success && res.data) {
-        runInAction(() => {
-          this.status = res.data!;
-        });
-      } else if (!res.success) {
-        throw new Error(res.error || 'Unknown error');
-      }
+      // 1. Pull
+      runInAction(() => this.syncStep = 'pulling');
+      const pullRes = await window.electronAPI.pullGit();
+      if (!pullRes.success) throw new Error(pullRes.error || 'Pull failed');
+      runInAction(() => this.status = pullRes.data!);
+
+      // 2. Push
+      runInAction(() => this.syncStep = 'pushing');
+      const pushRes = await window.electronAPI.pushGit();
+      if (!pushRes.success) throw new Error(pushRes.error || 'Push failed');
+      runInAction(() => this.status = pushRes.data!);
+
     } catch (error) {
       console.error('Failed to sync:', error);
       runInAction(() => {
