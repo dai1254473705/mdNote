@@ -46,7 +46,7 @@ export class RootStore {
     this.uiStore = new UIStore();
     this.gitStore = new GitStore(this.toastStore, this.uiStore);
     // Pass gitStore to fileStore for event-driven git status updates
-    this.fileStore = new FileStore(this.toastStore, this.gitStore);
+    this.fileStore = new FileStore(this.toastStore, this.uiStore, this.gitStore);
     this.scheduleStore = new ScheduleStore();
     this.drinkReminderStore = new DrinkReminderStore();
     this.passwordStore = new PasswordStore(this.toastStore);

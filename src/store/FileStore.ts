@@ -1,6 +1,7 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 import type { FileNode } from '../types';
 import type { ToastStore } from './ToastStore';
+import type { UIStore } from './UIStore';
 import type { GitStore } from './GitStore';
 import { TabStore, type OpenTab } from './TabStore';
 import { SearchStore, type SearchResult } from './SearchStore';
@@ -41,22 +42,23 @@ export class FileStore {
   readonly favoriteStore: FavoriteStore;
 
   public toastStore: ToastStore;
+  public uiStore?: UIStore; // Injected
   private gitStore?: GitStore;
   public tagStore?: any; // TagStore injected after creation
   public trashStore?: any; // TrashStore injected after creation
 
-  constructor(toastStore: ToastStore, gitStore?: GitStore) {
+  constructor(toastStore: ToastStore, uiStore: UIStore, gitStore?: GitStore) {
+    this.toastStore = toastStore;
+    this.uiStore = uiStore;
+    this.gitStore = gitStore;
+
     makeAutoObservable(this, {
       // Sub-stores are already observable
       tabStore: false,
       searchStore: false,
       exportStore: false,
       favoriteStore: false,
-      // expandedPaths is an ObservableSet, no need for observable.ref
     });
-
-    this.toastStore = toastStore;
-    this.gitStore = gitStore;
 
     // Initialize sub-stores
     this.tabStore = new TabStore();
@@ -303,6 +305,9 @@ export class FileStore {
   async selectFile(node: FileNode) {
     if (node.type !== 'file') return;
 
+    // Switch to editor view
+    this.uiStore?.setActivePage('editor');
+
     // Check if file is already open
     const existingTab = this.tabStore.findTabByPath(node.path);
     if (existingTab) {
@@ -371,6 +376,7 @@ export class FileStore {
 
   // Switch to a different tab
   switchTab(tabId: string) {
+    this.uiStore?.setActivePage('editor');
     const tab = this.tabStore.findTabById(tabId);
     if (!tab) return;
 

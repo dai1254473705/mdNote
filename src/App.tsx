@@ -1,5 +1,4 @@
 import { observer } from 'mobx-react-lite';
-import { TrashDialog } from './components/TrashDialog'; // Correct import path if needed, check where TrashDialog is
 import { Toolbar } from './components/Toolbar';
 import Sidebar from './components/Sidebar';
 import Editor from './components/Editor';
@@ -7,14 +6,14 @@ import { ToastContainer } from './components/Toast';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 import { HelpDialog } from './components/HelpDialog';
 import { ErrorDialog } from './components/ErrorDialog';
-import { SchedulePanel } from './components/Schedule';
+import { SchedulePage } from './components/Schedule/SchedulePage';
 import { DrinkReminderDialog } from './components/DrinkReminder';
-import { PasswordManager } from './components/PasswordManager';
+import { PasswordPage } from './components/PasswordManager/PasswordPage';
+import { TrashPage } from './components/TrashDialog/TrashPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useStore } from './store';
 import { useEffect, lazy, Suspense, useState } from 'react';
-import { Loader2, X } from 'lucide-react';
-import * as Dialog from '@radix-ui/react-dialog';
+import { Loader2 } from 'lucide-react';
 
 // Code splitting for less frequently used components
 const Welcome = lazy(() => import('./components/Welcome').then(m => ({ default: m.Welcome })));
@@ -24,9 +23,6 @@ const AppContent = observer(() => {
   const { uiStore, fileStore } = useStore();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [showSchedule, setShowSchedule] = useState(false);
-  const [showPasswordManager, setShowPasswordManager] = useState(false);
-  const [showTrashDialog, setShowTrashDialog] = useState(false);
 
   useEffect(() => {
     uiStore.initTheme();
@@ -49,16 +45,16 @@ const AppContent = observer(() => {
         setShowHelp(prev => !prev);
       }
 
-      // Cmd+D to open schedule panel
+      // Cmd+D to open schedule page
       if (isMod && e.key === 'd') {
         e.preventDefault();
-        setShowSchedule(prev => !prev);
+        uiStore.setActivePage('schedule');
       }
 
       // Cmd+P to open password manager
       if (isMod && e.key === 'p') {
         e.preventDefault();
-        setShowPasswordManager(true);
+        uiStore.setActivePage('password');
       }
 
       // Cmd+B to toggle sidebar
@@ -71,6 +67,7 @@ const AppContent = observer(() => {
       if (isMod && e.key === 'n') {
         e.preventDefault();
         fileStore.createFile(fileStore.rootPath, 'New Note.md');
+        uiStore.setActivePage('editor');
       }
 
       // Cmd+W to close current tab
@@ -146,21 +143,21 @@ const AppContent = observer(() => {
         </Suspense>
       ) : (
         <div className="h-screen w-screen flex flex-col bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 overflow-hidden font-sans">
-          <Toolbar
-            onHelpClick={() => setShowHelp(true)}
-            onScheduleClick={() => setShowSchedule(true)}
-            onPasswordManagerClick={() => setShowPasswordManager(true)}
-          />
+          <Toolbar />
           <div className="flex-1 flex overflow-hidden">
             <Sidebar
               onHelpClick={() => setShowHelp(true)}
-              onScheduleClick={() => setShowSchedule(true)}
-              onPasswordManagerClick={() => setShowPasswordManager(true)}
-              onTrashClick={() => setShowTrashDialog(true)}
+              onScheduleClick={() => uiStore.setActivePage('schedule')}
+              onPasswordManagerClick={() => uiStore.setActivePage('password')}
+              onTrashClick={() => uiStore.setActivePage('trash')}
             />
-            <Editor />
+            <div className="flex-1 overflow-hidden relative">
+              {uiStore.activePage === 'editor' && <Editor />}
+              {uiStore.activePage === 'schedule' && <SchedulePage />}
+              {uiStore.activePage === 'password' && <PasswordPage />}
+              {uiStore.activePage === 'trash' && <TrashPage />}
+            </div>
           </div>
-          <SchedulePanel isOpen={showSchedule} onClose={() => setShowSchedule(false)} />
         </div>
       )}
       <ToastContainer />
@@ -174,28 +171,6 @@ const AppContent = observer(() => {
         onClose={() => uiStore.closeErrorDialog()}
       />
       <DrinkReminderDialog />
-
-      {/* Password Manager Modal */}
-      <Dialog.Root open={showPasswordManager} onOpenChange={setShowPasswordManager}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50 animate-in fade-in duration-200" />
-          <Dialog.Content className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] bg-white dark:bg-gray-900 rounded-lg shadow-xl z-50 w-[90vw] h-[80vh] max-w-5xl animate-in zoom-in-95 duration-200 flex flex-col overflow-hidden">
-            <Dialog.Title className="sr-only">密码管理器</Dialog.Title>
-            <Dialog.Close asChild>
-              <button className="absolute top-4 right-4 p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors z-10">
-                <X size={20} className="text-gray-500" />
-              </button>
-            </Dialog.Close>
-            <PasswordManager />
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
-
-      {/* Trash Dialog */}
-      <TrashDialog
-        isOpen={showTrashDialog}
-        onClose={() => setShowTrashDialog(false)}
-      />
     </>
   );
 });

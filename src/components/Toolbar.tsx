@@ -350,6 +350,7 @@ export const Toolbar = observer(({ }: ToolbarProps) => {
                       { value: 'geek-black', label: '极客黑' },
                       { value: 'cute-green', label: '萌绿' },
                       { value: 'full-stack-blue', label: '全栈蓝' },
+                      { value: 'tech-blue', label: '科技蓝' },
                       { value: 'rose-purple', label: '蔷薇紫' },
                       { value: 'minimal-black', label: '极简黑' },
                       { value: 'purple-night', label: '凝夜紫' },

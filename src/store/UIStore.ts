@@ -23,6 +23,13 @@ export class UIStore {
       message: '',
       details: '',
     };
+  
+  // Feature Page Refactor: Active page state
+  activePage: 'editor' | 'schedule' | 'password' | 'trash' = 'editor';
+ 
+  setActivePage(page: 'editor' | 'schedule' | 'password' | 'trash') {
+    this.activePage = page;
+  }
 
   gridView: boolean = false; // Added missing property just in case, but focusing on defaultViewMode
   defaultViewMode: ViewMode = 'split';
