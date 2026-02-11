@@ -564,10 +564,18 @@ export const Editor = observer(() => {
     );
   }
 
-  // Handle non-editable files (images only)
+  // Handle non-editable files (images/videos)
   const fileName = fileStore.currentFile.name.toLowerCase();
-  const isEditable = fileName.endsWith('.md') || fileName.endsWith('.json') || fileName.endsWith('.txt');
-  const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileStore.currentFile.name);
+
+  const isImage = /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)$/i.test(fileName);
+  const isVideo = /\.(mp4|webm|ogg|mov|mkv|avi)$/i.test(fileName);
+
+  // Known binary/non-text formats that we definitely can't edit
+  const isBinary = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|zip|tar|gz|7z|rar|exe|dll|so|dylib|bin|dat|iso|dmg)$/i.test(fileName);
+
+  // Default to editable if it's not a known media or binary file
+  // This allows files like LICENSE, Makefile, Dockerfile, etc. to be opened
+  const isEditable = !isImage && !isVideo && !isBinary;
 
   if (!isEditable) {
     return (
@@ -588,21 +596,43 @@ export const Editor = observer(() => {
                 alt={fileStore.currentFile.name}
                 className="max-w-full max-h-full object-contain shadow-lg rounded-lg"
               />
+            ) : isVideo ? (
+              // Use media:// protocol to display local video
+              <div className="flex flex-col items-center justify-center w-full h-full max-w-4xl">
+                <video
+                  controls
+                  className="w-full max-h-[80vh] shadow-lg rounded-lg outline-none bg-black"
+                  src={`media://local${fileStore.currentFile.path}`}
+                >
+                  Your browser does not support the video tag.
+                </video>
+              </div>
             ) : (
               <div className="text-center">
                 <div className="text-6xl mb-4">📄</div>
-                <p className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <p className="text-sm text-gray-500 mb-6">
                   {fileStore.currentFile.name}
                 </p>
-                <p className="text-sm text-gray-500">
-                  This file type is not supported for editing or previewing yet.
-                </p>
-                <button
-                  className="mt-4 px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors"
-                  onClick={() => window.electronAPI.showItemInFolder(fileStore.currentFile!.path)}
-                >
-                  Show in Folder
-                </button>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-2"
+                    onClick={async () => {
+                      if (!fileStore.currentFile) return;
+                      const res = await window.electronAPI.openPath(fileStore.currentFile.path);
+                      if (!res.success) {
+                        fileStore.toastStore?.error(`Open failed: ${res.error}`);
+                      }
+                    }}
+                  >
+                    <span>Open in Default App</span>
+                  </button>
+                  <button
+                    className="px-4 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+                    onClick={() => window.electronAPI.showItemInFolder(fileStore.currentFile!.path)}
+                  >
+                    Show in Folder
+                  </button>
+                </div>
               </div>
             )}
           </div>

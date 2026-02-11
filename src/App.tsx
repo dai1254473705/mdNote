@@ -10,6 +10,8 @@ import { SchedulePage } from './components/Schedule/SchedulePage';
 import { DrinkReminderDialog } from './components/DrinkReminder';
 import { PasswordPage } from './components/PasswordManager/PasswordPage';
 import { TrashPage } from './components/TrashDialog/TrashPage';
+import { TodoPage } from './components/Todo/TodoPage';
+import { DiaryPage } from './components/Diary/DiaryPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useStore } from './store';
 import { useEffect, lazy, Suspense, useState } from 'react';
@@ -150,12 +152,16 @@ const AppContent = observer(() => {
               onScheduleClick={() => uiStore.setActivePage('schedule')}
               onPasswordManagerClick={() => uiStore.setActivePage('password')}
               onTrashClick={() => uiStore.setActivePage('trash')}
+              onTodoListClick={() => uiStore.setActivePage('todo')}
+              onDiaryClick={() => uiStore.setActivePage('diary')}
             />
             <div className="flex-1 overflow-hidden relative">
               {uiStore.activePage === 'editor' && <Editor />}
               {uiStore.activePage === 'schedule' && <SchedulePage />}
               {uiStore.activePage === 'password' && <PasswordPage />}
               {uiStore.activePage === 'trash' && <TrashPage />}
+              {uiStore.activePage === 'todo' && <TodoPage />}
+              {uiStore.activePage === 'diary' && <DiaryPage />}
             </div>
           </div>
         </div>

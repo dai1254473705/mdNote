@@ -26,6 +26,7 @@
 *   **红宝石 (Ruby)**: `md-style-ruby`，类似公众号专栏风格，红色强调色。
 *   **草原绿 (Meadow)**: `md-style-meadow`，绿色系，自然舒适。
 *   **锤子便签 (Kraft)**: `md-style-kraft`，米黄色背景，拟物化纸张质感。
+*   **简约绿 (Simple Green)**: `md-style-simple-green`，公众号风格，清新的绿色强调色。
 *   **极客黑 (Geek Black)**: `md-style-geek-black`，黑白高对比，胶囊式标题。
 *   **萌绿 (Cute Green)**: `md-style-cute-green`，带有考拉图案元素。
 *   **全栈蓝 (Full Stack Blue)**: `md-style-fullstack-blue`，科技感蓝色网格背景。

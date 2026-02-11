@@ -130,11 +130,27 @@ export interface PasswordSettings {
   encryptionSalt?: string; // Unique salt for encryption (generated per user)
   encryptionEnabled: boolean;
   autoLockMinutes: number;
+  viewMode?: 'grid' | 'list';
+  showFavicons?: boolean;
 }
 
 export interface PasswordData {
   passwords: PasswordEntry[];
   settings: PasswordSettings;
+}
+
+// Diary Interface
+export interface DiaryMeta {
+  title: string;
+  date: string; // YYYY-MM-DD
+  tags: string[];
+  weather?: string;
+  mood?: string;
+  location?: string;
+  people?: string;
+  time?: string;
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface IpcApi {
@@ -144,4 +160,39 @@ export interface IpcApi {
 
   // Project
   setProject: (repoPath: string) => Promise<IpcResponse<void>>;
+
+  // Todo List
+  getTodoDataPath: () => Promise<IpcResponse<string>>;
+  loadTodoData: () => Promise<IpcResponse<TodoData>>;
+  saveTodoData: (data: TodoData) => Promise<IpcResponse<void>>;
+
+  // Diary
+  diaryGetDataPath: () => Promise<IpcResponse<string>>;
+  diarySetDataPath: (path: string) => Promise<IpcResponse<void>>;
+  diaryRead: (date: string) => Promise<IpcResponse<{ content: string; meta: DiaryMeta }>>;
+  diarySave: (date: string, content: string, meta: DiaryMeta) => Promise<IpcResponse<void>>;
+  diaryList: (year: number, month: number) => Promise<IpcResponse<string[]>>;
+  diaryGitInit: () => Promise<IpcResponse<void>>;
+  diaryGitSync: () => Promise<IpcResponse<void>>;
+}
+
+// Todo List Types
+export interface TodoTask {
+  id: string;
+  title: string;
+  isCompleted: boolean;
+  createdAt: number;
+  listId: string;
+}
+
+export interface TodoList {
+  id: string;
+  name: string;
+  icon: string; // Lucide icon name
+  isDefault?: boolean;
+}
+
+export interface TodoData {
+  lists: TodoList[];
+  tasks: TodoTask[];
 }

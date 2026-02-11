@@ -10,6 +10,8 @@ import { BacklinkStore } from './BacklinkStore';
 import { KeyboardShortcutStore } from './KeyboardShortcutStore';
 import { TagStore } from './TagStore';
 import { TrashStore } from './TrashStore';
+import { TodoStore } from './TodoStore';
+import { DiaryStore } from './DiaryStore';
 
 // Re-export individual stores for convenience
 export { FileStore } from './FileStore';
@@ -27,6 +29,8 @@ export { BacklinkStore, type Wikilink, type Backlink } from './BacklinkStore';
 export { KeyboardShortcutStore, type ShortcutConfig, type ShortcutAction } from './KeyboardShortcutStore';
 export { TagStore, type Tag, type FileTags } from './TagStore';
 export { TrashStore, type TrashItem } from './TrashStore';
+export { TodoStore } from './TodoStore';
+export { DiaryStore } from './DiaryStore';
 
 export class RootStore {
   fileStore: FileStore;
@@ -40,6 +44,8 @@ export class RootStore {
   keyboardShortcutStore: KeyboardShortcutStore;
   tagStore: TagStore;
   trashStore: TrashStore;
+  todoStore: TodoStore;
+  diaryStore: DiaryStore;
 
   constructor() {
     this.toastStore = new ToastStore();
@@ -54,6 +60,8 @@ export class RootStore {
     this.keyboardShortcutStore = new KeyboardShortcutStore();
     this.tagStore = new TagStore();
     this.trashStore = new TrashStore();
+    this.todoStore = new TodoStore();
+    this.diaryStore = new DiaryStore(this);
     // Inject tagStore into fileStore
     this.fileStore.tagStore = this.tagStore;
     // Inject trashStore into fileStore

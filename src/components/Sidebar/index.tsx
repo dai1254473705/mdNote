@@ -30,7 +30,12 @@ import {
   Key,
   HelpCircle,
   Wrench,
-  Trash2
+  Trash2,
+  CheckSquare,
+  Book,
+  X,
+  History,
+  Clock
 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Tooltip from '@radix-ui/react-tooltip';
@@ -42,6 +47,8 @@ interface SidebarProps {
   onScheduleClick: () => void;
   onPasswordManagerClick: () => void;
   onTrashClick: () => void;
+  onTodoListClick: () => void;
+  onDiaryClick: () => void;
 }
 
 // Create context for expand/collapse state
@@ -584,12 +591,102 @@ const SearchResultItem = observer(({ result }: { result: { path: string; name: s
   );
 });
 
-export const Sidebar = observer(({ onHelpClick, onScheduleClick, onPasswordManagerClick, onTrashClick }: SidebarProps) => {
+
+// Temp File Item Component
+const TempFileItem = observer(({ path, onRemove }: { path: string; onRemove: (path: string) => void }) => {
+  const { fileStore } = useStore();
+  const name = path.split(/[/\\]/).pop() || 'Untitled';
+  const isSelected = fileStore.currentFile?.path === path;
+
+  const handleSelect = () => {
+    const node: FileNode = {
+      id: path,
+      name: name,
+      path: path,
+      type: 'file',
+      level: 0
+    };
+    fileStore.selectFile(node);
+  };
+
+  return (
+    <div className="px-2 py-1">
+      <div
+        className={cn(
+          "group flex items-center py-1.5 px-2 cursor-pointer transition-colors rounded-md text-sm select-none",
+          isSelected ? "bg-primary/10 dark:bg-primary/20 text-primary font-medium" : "hover:bg-gray-100 dark:hover:bg-gray-800"
+        )}
+        onClick={handleSelect}
+      >
+        <FileText size={16} className={cn("mr-2 shrink-0", isSelected ? "text-primary" : "text-gray-400")} />
+        <span className="flex-1 truncate" title={path}>{name}</span>
+        <button
+          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(path);
+          }}
+          title="移除记录"
+        >
+          <X size={12} className="text-gray-400 hover:text-red-500" />
+        </button>
+      </div>
+    </div>
+  );
+});
+
+// Recent File Item Component
+const RecentFileItem = observer(({ path, onRemove }: { path: string; onRemove: (path: string) => void }) => {
+  const { fileStore } = useStore();
+  const name = path.split(/[/\\]/).pop() || 'Untitled';
+  const isSelected = fileStore.currentFile?.path === path;
+
+  const handleSelect = () => {
+    const node: FileNode = {
+      id: path,
+      name: name,
+      path: path,
+      type: 'file',
+      level: 0
+    };
+    fileStore.selectFile(node);
+  };
+
+  return (
+    <div className="px-2 py-0.5">
+      <div
+        className={cn(
+          "group flex items-center py-1.5 px-2 cursor-pointer transition-colors rounded-md text-sm select-none",
+          isSelected ? "bg-primary/10 dark:bg-primary/20 text-primary font-medium" : "hover:bg-gray-100 dark:hover:bg-gray-800"
+        )}
+        onClick={handleSelect}
+      >
+        <Clock size={16} className={cn("mr-2 shrink-0", isSelected ? "text-primary" : "text-gray-400")} />
+        <span className="flex-1 truncate text-gray-600 dark:text-gray-300" title={path}>{name}</span>
+        <button
+          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(path);
+          }}
+          title="从记录中移除"
+        >
+          <X size={12} className="text-gray-400 hover:text-red-500" />
+        </button>
+      </div>
+    </div>
+  );
+});
+
+export const Sidebar = observer(({ onHelpClick, onScheduleClick, onPasswordManagerClick, onTrashClick, onTodoListClick, onDiaryClick }: SidebarProps) => {
   const { uiStore, fileStore } = useStore();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
   // const [expandAll, setExpandAll] = useState<boolean | 'level1' | null>(null); // Removed
   const [favoritesExpanded, setFavoritesExpanded] = useState(true);
+
+  const [tempFilesExpanded, setTempFilesExpanded] = useState(true);
+  const [recentFilesExpanded, setRecentFilesExpanded] = useState(true);
   const [toolboxExpanded, setToolboxExpanded] = useState(false);
 
   // 拖拽调整宽度
@@ -791,6 +888,20 @@ export const Sidebar = observer(({ onHelpClick, onScheduleClick, onPasswordManag
               <Trash2 size={14} className="mr-2 text-gray-500" />
               回收站
             </div>
+            <div
+              className="flex items-center pl-9 pr-3 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs transition-colors"
+              onClick={onTodoListClick}
+            >
+              <CheckSquare size={14} className="mr-2 text-primary" />
+              待办清单
+            </div>
+            <div
+              className="flex items-center pl-9 pr-3 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs transition-colors"
+              onClick={onDiaryClick}
+            >
+              <Book size={14} className="mr-2 text-purple-500" />
+              日记本
+            </div>
           </div>
         )}
       </div>
@@ -843,6 +954,66 @@ export const Sidebar = observer(({ onHelpClick, onScheduleClick, onPasswordManag
                         key={path}
                         path={path}
                         onRemove={(path) => fileStore.toggleFavorite(path)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Temp Files Section */}
+            {fileStore.tempFiles.length > 0 && (
+              <>
+                <div
+                  className="flex items-center px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors select-none"
+                  onClick={() => setTempFilesExpanded(!tempFilesExpanded)}
+                >
+                  <FileText size={14} className="mr-2 text-blue-500" />
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 flex-1">
+                    外部文件 ({fileStore.tempFiles.length})
+                  </span>
+                  <ChevronRight
+                    size={12}
+                    className={cn("text-gray-400 transition-transform", tempFilesExpanded ? "rotate-90" : "")}
+                  />
+                </div>
+                {tempFilesExpanded && (
+                  <div className="border-b border-gray-200 dark:border-gray-800 pb-2">
+                    {fileStore.tempFiles.map(path => (
+                      <TempFileItem
+                        key={path}
+                        path={path}
+                        onRemove={(path) => fileStore.removeTempFile(path)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Recent Files Section */}
+            {fileStore.recentFiles.length > 0 && (
+              <>
+                <div
+                  className="flex items-center px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors select-none"
+                  onClick={() => setRecentFilesExpanded(!recentFilesExpanded)}
+                >
+                  <History size={14} className="mr-2 text-purple-500" />
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 flex-1">
+                    最近打开 ({fileStore.recentFiles.length})
+                  </span>
+                  <ChevronRight
+                    size={12}
+                    className={cn("text-gray-400 transition-transform", recentFilesExpanded ? "rotate-90" : "")}
+                  />
+                </div>
+                {recentFilesExpanded && (
+                  <div className="border-b border-gray-200 dark:border-gray-800 pb-2">
+                    {fileStore.recentFiles.map(path => (
+                      <RecentFileItem
+                        key={path}
+                        path={path}
+                        onRemove={(path) => fileStore.removeRecentFile(path)}
                       />
                     ))}
                   </div>

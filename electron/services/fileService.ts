@@ -72,12 +72,12 @@ export class FileService {
   }
 
   async readFile(filePath: string): Promise<string> {
-    await this.validatePath(filePath);
+    // await this.validatePath(filePath); // Allow reading external files
     return fs.readFile(filePath, 'utf-8');
   }
 
   async saveFile(filePath: string, content: string): Promise<void> {
-    await this.validatePath(filePath);
+    // await this.validatePath(filePath); // Allow saving external files
     await fs.writeFile(filePath, content, 'utf-8');
   }
 
@@ -212,8 +212,7 @@ export class FileService {
    */
   async copyToAssets(sourcePath: string, currentMdPath: string): Promise<string> {
     console.log('[FileService] copyToAssets', { sourcePath, currentMdPath });
-    await this.validatePath(currentMdPath);
-    // Note: sourcePath is external, so we don't validate it against rootPath
+    // await this.validatePath(currentMdPath); // Allow external
 
     const assetsDirName = 'files';
     const currentDir = path.dirname(currentMdPath);
@@ -252,7 +251,7 @@ export class FileService {
    */
   async savePastedFile(fileName: string, fileData: Buffer, currentMdPath: string): Promise<string> {
     console.log('[FileService] savePastedFile', { fileName, currentMdPath });
-    await this.validatePath(currentMdPath);
+    // await this.validatePath(currentMdPath); // Allow external
 
     const assetsDirName = 'files';
     const currentDir = path.dirname(currentMdPath);
@@ -280,6 +279,12 @@ export class FileService {
     // Return relative path: "files/filename.png"
     return `${assetsDirName}/${targetFileName}`;
   }
+
+
+
+
+
+
 
   private async validatePath(targetPath: string) {
     const rootPath = await this.getRootPath();

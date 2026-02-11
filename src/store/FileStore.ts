@@ -66,7 +66,109 @@ export class FileStore {
     this.exportStore = new ExportStore();
     this.favoriteStore = new FavoriteStore();
 
+
+
     this.loadSortSettings();
+    this.loadTempFiles();
+    this.loadRecentFiles();
+
+    // Listen for open-file events from main process
+    if (window.electronAPI?.onOpenFile) {
+      window.electronAPI.onOpenFile((path) => {
+        this.addTempFile(path);
+      });
+    }
+  }
+
+  // Temporary/External files state
+  tempFiles: string[] = [];
+
+  loadTempFiles() {
+    try {
+      const saved = localStorage.getItem('zhixia-temp-files');
+      if (saved) {
+        this.tempFiles = JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Failed to load temp files', e);
+    }
+  }
+
+  saveTempFiles() {
+    localStorage.setItem('zhixia-temp-files', JSON.stringify(this.tempFiles));
+  }
+
+  addTempFile(path: string) {
+    if (!path) return;
+    runInAction(() => {
+      // Avoid duplicates
+      if (!this.tempFiles.includes(path)) {
+        this.tempFiles.push(path);
+        this.saveTempFiles();
+      }
+
+      this.addRecentFile(path);
+
+      // Auto open
+      // We need to construct a lightweight FileNode since it might not be in the tree
+      const name = path.split(/[/\\]/).pop() || 'Untitled';
+      const node: FileNode = {
+        id: path, // Use path as ID for external files
+        name: name,
+        path: path,
+        type: 'file',
+        level: 0
+      };
+
+      this.selectFile(node);
+    });
+  }
+
+  removeTempFile(path: string) {
+    runInAction(() => {
+      this.tempFiles = this.tempFiles.filter(p => p !== path);
+      this.saveTempFiles();
+    });
+  }
+
+  // Recent files state
+  recentFiles: string[] = [];
+
+  loadRecentFiles() {
+    try {
+      const saved = localStorage.getItem('zhixia-recent-files');
+      if (saved) {
+        this.recentFiles = JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Failed to load recent files', e);
+    }
+  }
+
+  saveRecentFiles() {
+    localStorage.setItem('zhixia-recent-files', JSON.stringify(this.recentFiles));
+  }
+
+  addRecentFile(path: string) {
+    if (!path) return;
+    runInAction(() => {
+      // Remove existing to move to top
+      this.recentFiles = this.recentFiles.filter(p => p !== path);
+      // Add to top
+      this.recentFiles.unshift(path);
+      // Limit to 20
+      if (this.recentFiles.length > 20) {
+        this.recentFiles.pop();
+      }
+      this.saveRecentFiles();
+    });
+  }
+
+  removeRecentFile(path: string) {
+    runInAction(() => {
+      this.recentFiles = this.recentFiles.filter(p => p !== path);
+      this.saveRecentFiles();
+    });
   }
 
   // Toggle expansion state of a directory
@@ -308,6 +410,9 @@ export class FileStore {
     // Switch to editor view
     this.uiStore?.setActivePage('editor');
 
+    // Add to recent files
+    this.addRecentFile(node.path);
+
     // Check if file is already open
     const existingTab = this.tabStore.findTabByPath(node.path);
     if (existingTab) {
@@ -349,22 +454,29 @@ export class FileStore {
     // Load new file
     this.isLoading = true;
     try {
-      const res = await window.electronAPI.readFile(node.path);
-      if (res.success) {
-        const content = res.data || '';
-        runInAction(() => {
-          this.tabStore.addTab({
-            file: node,
-            content,
-            originalContent: content,
-            isModified: false
-          });
+      // Consistent with Editor/index.tsx
+      const isBinary = /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico|mp4|webm|ogg|mov|mkv|avi|mp3|wav|flac|pdf|doc|docx|xls|xlsx|ppt|pptx|zip|tar|gz|7z|rar|exe|dll|so|dylib|bin|dat|iso|dmg)$/i.test(node.name);
 
-          this.currentFile = node;
-          this.currentContent = content;
-          this.originalContent = content;
-        });
+      let content = '';
+      if (!isBinary) {
+        const res = await window.electronAPI.readFile(node.path);
+        if (res.success) {
+          content = res.data || '';
+        }
       }
+
+      runInAction(() => {
+        this.tabStore.addTab({
+          file: node,
+          content,
+          originalContent: content,
+          isModified: false
+        });
+
+        this.currentFile = node;
+        this.currentContent = content;
+        this.originalContent = content;
+      });
     } catch (error) {
       console.error('Failed to read file:', error);
     } finally {

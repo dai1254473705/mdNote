@@ -1,4 +1,4 @@
-import { AppConfig, FileNode, GitStatus, IpcResponse, ScheduleItem, DrinkReminderConfig, PasswordEntry, PasswordSettings, PasswordData } from './index';
+import { AppConfig, FileNode, GitStatus, IpcResponse, ScheduleItem, DrinkReminderConfig, PasswordEntry, PasswordSettings, PasswordData, TodoData, DiaryMeta } from './index';
 
 declare global {
   interface Window {
@@ -39,6 +39,7 @@ declare global {
 
       // System
       showItemInFolder: (path: string) => Promise<IpcResponse<void>>;
+      openPath: (path: string) => Promise<IpcResponse<void>>;
       getLogPath: () => Promise<IpcResponse<string>>;
       setLogPath: (newPath: string) => Promise<IpcResponse<string>>;
       openLogDirectory: () => Promise<IpcResponse<void>>;
@@ -84,10 +85,21 @@ declare global {
       encryptPassword: (password: string, masterPassword: string, salt?: string) => Promise<IpcResponse<string>>;
       decryptPassword: (encryptedPassword: string, masterPassword: string, salt?: string) => Promise<IpcResponse<string>>;
 
+      // Todo List
+      getTodoDataPath: () => Promise<IpcResponse<string>>;
+      loadTodoData: () => Promise<IpcResponse<TodoData>>;
+      saveTodoData: (data: TodoData) => Promise<IpcResponse<void>>;
+
+      // Diary
+      diaryRead: (date: string, rootPath: string) => Promise<IpcResponse<{ content: string; meta: DiaryMeta }>>;
+      diarySave: (date: string, content: string, meta: DiaryMeta, rootPath: string) => Promise<IpcResponse<void>>;
+      diaryList: (year: number, month: number, rootPath: string) => Promise<IpcResponse<string[]>>;
+
       // Window
       maximizeWindow: () => void;
       minimizeWindow: () => void;
       closeWindow: () => void;
+      onOpenFile: (callback: (path: string) => void) => void;
     };
   }
 }

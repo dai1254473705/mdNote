@@ -21,13 +21,17 @@ export interface PasswordSettings {
   encryptionSalt?: string; // Unique salt for encryption (generated per user)
   encryptionEnabled: boolean;
   autoLockMinutes: number; // Auto-lock after inactivity
+  viewMode: 'grid' | 'list'; // View mode for password list
+  showFavicons: boolean; // Whether to show website favicons
 }
 
 export class PasswordStore {
   passwords: PasswordEntry[] = [];
   settings: PasswordSettings = {
     encryptionEnabled: false,
-    autoLockMinutes: 5
+    autoLockMinutes: 5,
+    viewMode: 'grid',
+    showFavicons: false
   };
   isLocked: boolean = true;
   isInitialized: boolean = false;
@@ -42,6 +46,35 @@ export class PasswordStore {
     makeAutoObservable(this);
     this.toastStore = toastStore;
     this.checkAutoLock();
+    this.setupActivityListeners();
+  }
+
+  // Set up global activity listeners to prevent auto-lock while active
+  private setupActivityListeners() {
+    const update = () => {
+      // Only update if not locked to avoid unnecessary writes
+      if (!this.isLocked && this.isInitialized) {
+        this.updateActivity();
+      }
+    };
+
+    // Throttle updates to once per minute
+    let timeout: any = null;
+    const onActivity = () => {
+      if (!timeout) {
+        update();
+        timeout = setTimeout(() => {
+          timeout = null;
+        }, 60000);
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('mousemove', onActivity);
+      window.addEventListener('keydown', onActivity);
+      window.addEventListener('click', onActivity);
+      window.addEventListener('scroll', onActivity);
+    }
   }
 
   // Check for auto-lock
@@ -76,7 +109,9 @@ export class PasswordStore {
             encryptionEnabled: loadRes.data.settings.encryptionEnabled ?? false,
             autoLockMinutes: loadRes.data.settings.autoLockMinutes ?? 5,
             masterPasswordHash: loadRes.data.settings.masterPasswordHash,
-            encryptionSalt: loadRes.data.settings.encryptionSalt
+            encryptionSalt: loadRes.data.settings.encryptionSalt,
+            viewMode: loadRes.data.settings.viewMode ?? 'grid',
+            showFavicons: loadRes.data.settings.showFavicons ?? false
           };
           this.masterPasswordSet = !!this.settings.masterPasswordHash;
           // Sync isLocked state with masterPasswordSet
@@ -288,7 +323,9 @@ export class PasswordStore {
           encryptionEnabled: this.settings.encryptionEnabled,
           autoLockMinutes: this.settings.autoLockMinutes,
           masterPasswordHash: this.settings.masterPasswordHash,
-          encryptionSalt: this.settings.encryptionSalt
+          encryptionSalt: this.settings.encryptionSalt,
+          viewMode: this.settings.viewMode,
+          showFavicons: this.settings.showFavicons
         }
       });
     } catch (error) {
@@ -314,7 +351,8 @@ export class PasswordStore {
       p.title.toLowerCase().includes(query) ||
       p.username?.toLowerCase().includes(query) ||
       p.website?.toLowerCase().includes(query) ||
-      p.email?.toLowerCase().includes(query)
+      p.email?.toLowerCase().includes(query) ||
+      p.notes?.toLowerCase().includes(query)
     );
   }
 

@@ -220,6 +220,36 @@ export const Preview = memo(observer(function Preview({ content, searchQuery, cu
       return `<img src="${src}" alt="${text}" title="${title || ''}" style="${style}" />`;
     };
 
+    // Custom Link Renderer (Video Support)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // Custom Link Renderer (Video Support)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    customRenderer.link = function (this: any, { href, title, tokens }: { href: string; title?: string | null; tokens: any[] }) {
+      // Check for video extensions
+      if (href && href.match(/\.(mp4|webm|ogg|mov)$/i)) {
+        let src = href;
+
+        // Handle local relative paths
+        if (!href.startsWith('http') && !href.startsWith('data:') && !href.startsWith('media:')) {
+          if (fileStore.currentFile) {
+            const currentFilePath = fileStore.currentFile.path;
+            const lastSlashIndex = currentFilePath.lastIndexOf('/');
+            if (lastSlashIndex !== -1) {
+              const currentDir = currentFilePath.substring(0, lastSlashIndex);
+              const absolutePath = `${currentDir}/${href}`;
+              src = `media://local${absolutePath}`;
+            }
+          }
+        }
+
+        return `<video controls preload="metadata" playsInline src="${src}" title="${title || ''}" style="max-width: 100%; max-height: 480px; border-radius: 4px; display: block; margin: 1em 0;"></video>`;
+      }
+
+      // Fallback to default renderer for other links
+      // Use 'this' to pass the correct renderer instance (with parser) to the original function
+      return renderer.link.call(this, { href, title, tokens } as any);
+    };
+
     marked.use({ renderer: customRenderer });
 
     if (ref.current) {

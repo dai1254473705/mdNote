@@ -347,6 +347,7 @@ export const Toolbar = observer(({ }: ToolbarProps) => {
                       { value: 'ruby', label: '红宝石' },
                       { value: 'meadow', label: '草原绿' },
                       { value: 'kraft', label: '锤子便签' },
+                      { value: 'simple-green', label: '简约绿' },
                       { value: 'geek-black', label: '极客黑' },
                       { value: 'cute-green', label: '萌绿' },
                       { value: 'full-stack-blue', label: '全栈蓝' },

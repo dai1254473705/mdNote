@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Settings2, Clock, Check } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { observer } from 'mobx-react-lite';

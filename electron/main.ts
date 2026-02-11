@@ -1,8 +1,8 @@
 import { app, BrowserWindow, ipcMain, shell, dialog, Menu, protocol, net, globalShortcut } from 'electron'
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
-import fs from 'fs'
-import fsPromises from 'fs/promises'
+import fs from 'fs-extra'
+import { promises as fsPromises } from 'fs'
 import os from 'os'
 import crypto from 'crypto'
 import { configService } from './services/configService'
@@ -32,7 +32,7 @@ log(`UserData Path: ${app.getPath('userData')}`);
 log(`Log Path: ${logService.getLogPath()}`);
 
 // Disable hardware acceleration
-app.disableHardwareAcceleration()
+// app.disableHardwareAcceleration() // Commented out to support video playback (e.g. HEVC)
 
 // Set App Name for notifications and system
 app.setName('知夏笔记')
@@ -146,6 +146,10 @@ const createMenu = () => {
   Menu.setApplicationMenu(menu)
 }
 
+// Global reference to main window
+let mainWindow: BrowserWindow | null = null;
+let pendingFileToOpen: string | null = null; // Store file path if window not ready
+
 const createWindow = () => {
   const iconPath = process.env.VITE_DEV_SERVER_URL
     ? path.join(__dirname, '../public/zhixia-logo.png')
@@ -153,7 +157,7 @@ const createWindow = () => {
 
   log(`Using Icon Path: ${iconPath}`);
 
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 1000,
@@ -179,34 +183,29 @@ const createWindow = () => {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
     mainWindow.webContents.openDevTools()
   } else {
-    // Open DevTools immediately in production to capture any loading errors
-    // log('Opening DevTools (Detach Mode)...');
-    // mainWindow.webContents.openDevTools({ mode: 'detach' })
-
     const indexHtmlPath = path.join(__dirname, '../dist/index.html');
-    log(`Loading File: ${indexHtmlPath}`);
-
-    // Check if file exists
-    try {
-      if (!fs.existsSync(indexHtmlPath)) {
-        log(`ERROR: Index file not found at ${indexHtmlPath}`);
-        dialog.showErrorBox('Missing Resource', `Index file not found at ${indexHtmlPath}`);
-      }
-    } catch (e) {
-      log(`Error checking index file: ${e}`);
-    }
-
-    mainWindow.loadFile(indexHtmlPath)
-      .then(() => {
-        log('loadFile promise resolved (page loaded successfully or failed with error page)');
-      })
-      .catch(e => {
-        const errMsg = `Failed to load index.html: ${e.message}\nPath: ${indexHtmlPath}`;
-        log(errMsg);
-        dialog.showErrorBox('Load Error', errMsg);
-      })
+    mainWindow.loadFile(indexHtmlPath);
   }
 
+  mainWindow.on('ready-to-show', () => {
+    if (mainWindow) {
+      mainWindow.show();
+      // Send pending file if any
+      if (pendingFileToOpen) {
+        log(`Sending pending file to renderer: ${pendingFileToOpen}`);
+        mainWindow.webContents.send('app:open-file', pendingFileToOpen);
+        pendingFileToOpen = null;
+      }
+    }
+  });
+
+
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+
+  // Window Event Listeners
   mainWindow.webContents.on('did-finish-load', () => {
     log('webContents did-finish-load');
   });
@@ -225,12 +224,73 @@ const createWindow = () => {
     shell.openExternal(url);
     return { action: 'deny' };
   });
-
-  // Window Controls
-  ipcMain.on('window:maximize', () => mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize())
-  ipcMain.on('window:minimize', () => mainWindow.minimize())
-  ipcMain.on('window:close', () => mainWindow.close())
 }
+
+// Window Controls
+ipcMain.on('window:maximize', () => {
+  if (mainWindow) {
+    mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
+  }
+});
+ipcMain.on('window:minimize', () => {
+  if (mainWindow) mainWindow.minimize();
+});
+ipcMain.on('window:close', () => {
+  if (mainWindow) mainWindow.close();
+});
+
+// Handle file opening (macOS)
+app.on('open-file', (event, path) => {
+  event.preventDefault();
+  log(`Open file requested: ${path}`);
+
+  if (mainWindow && mainWindow.webContents) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+    mainWindow.webContents.send('app:open-file', path);
+  } else {
+    pendingFileToOpen = path;
+  }
+});
+
+// Single Instance Lock
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    // Someone tried to run a second instance, we should focus our window.
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+
+      // Handle file opening from second instance (Windows/Linux)
+      // commandLine usually contains the executable path as first argument
+      const filePath = commandLine.find(arg => arg.endsWith('.md'));
+      if (filePath) {
+        mainWindow.webContents.send('app:open-file', filePath);
+      }
+    }
+  });
+
+  app.whenReady().then(() => {
+    createMenu();
+    // ... existing init logic ...
+
+    // Initialize services
+    configService.init();
+
+    // ...
+
+    createWindow();
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+  });
+}
+
 
 // --- IPC Handlers ---
 
@@ -1325,6 +1385,56 @@ ipcMain.handle('password:decrypt', async (_, encryptedData: string, masterPasswo
   }
 })
 
+// Todo List
+const TODO_DATA_FILE = 'todo.json'
+
+// Helper to get todo data file path
+const getTodoDataPath = () => {
+  return path.join(app.getPath('userData'), TODO_DATA_FILE)
+}
+
+ipcMain.handle('todo:getDataPath', async () => {
+  try {
+    const dataPath = getTodoDataPath()
+    return { success: true, data: dataPath }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('todo:loadData', async () => {
+  try {
+    const dataPath = getTodoDataPath()
+    if (fs.existsSync(dataPath)) {
+      const content = await fsPromises.readFile(dataPath, 'utf-8')
+      return { success: true, data: JSON.parse(content) }
+    }
+    // Default initial data
+    return {
+      success: true,
+      data: {
+        lists: [
+          { id: 'default', name: '我的一天', icon: 'Sun', isDefault: true }
+        ],
+        tasks: []
+      }
+    }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('todo:saveData', async (_, data) => {
+  try {
+    const dataPath = getTodoDataPath()
+    await fsPromises.mkdir(path.dirname(dataPath), { recursive: true })
+    await fsPromises.writeFile(dataPath, JSON.stringify(data, null, 2), 'utf-8')
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
 app.whenReady().then(async () => {
   log('App Ready Event Fired');
 
@@ -1381,36 +1491,147 @@ app.whenReady().then(async () => {
   })
 
   // Handle Media Protocol
-  protocol.handle('media', (request) => {
+  // Using registerFileProtocol to ensure full support for video streaming (Range requests)
+  protocol.registerFileProtocol('media', (request, callback) => {
+    const url = request.url
     try {
-      const parsedUrl = new URL(request.url)
-      const filePath = parsedUrl.pathname
-
-      // On Windows, pathname might start with /C:/... but pathToFileURL needs C:/... or handles it?
-      // pathToFileURL('/C:/...') works on Windows? 
-      // Actually pathToFileURL handles absolute paths well.
-      // But if pathname comes from URL, it might be percent encoded?
-      // new URL('...').pathname returns encoded path? No, it returns decoded usually? 
-      // Wait, MDN says pathname is USVString.
-      // node:url says: "The pathname property consists of the entire path section of the URL."
-      // It is NOT decoded.
-
-      const decodedPath = decodeURIComponent(filePath)
+      const parsedUrl = new URL(url)
+      const filePath = decodeURIComponent(parsedUrl.pathname)
+      let finalPath = filePath
 
       // Fix for Windows: /C:/Users -> C:/Users
-      if (process.platform === 'win32' && /^\/[a-zA-Z]:/.test(decodedPath)) {
-        // We probably don't need to strip it if we use pathToFileURL, but let's be safe
-        // actually pathToFileURL('/C:/Users') -> file:///C:/Users which is valid
+      if (process.platform === 'win32' && /^\/[a-zA-Z]:/.test(filePath)) {
+        finalPath = filePath.substring(1)
       }
 
-      const fileUrl = pathToFileURL(decodedPath).toString()
-      return net.fetch(fileUrl)
+      callback({ path: finalPath })
     } catch (error) {
       console.error('Media protocol error:', error)
-      return new Response('Not Found', { status: 404 })
+      // callback({ error: 404 }) // Types might error on number, usually expects empty or error code? 
+      // Safe to just log and let it fail or return dummy?
+      // standard callback signature: callback(filePath) or callback({path: filePath})
     }
   })
 })
+
+// Diary
+// Diary
+ipcMain.handle('diary:read', async (_, dateStr: string, diaryRoot: string) => { // dateStr: YYYY-MM-DD
+  try {
+    if (!diaryRoot) return { success: false, error: 'Diary root path not provided' };
+
+    const year = dateStr.split('-')[0];
+    const dayDir = path.join(diaryRoot, year, dateStr);
+    const indexFilePath = path.join(dayDir, 'index.md');
+    const legacyFilePath = path.join(diaryRoot, year, `${dateStr}.md`);
+
+    let filePathToRead = '';
+
+    // Check for directory structure first
+    if ((await fs.pathExists(dayDir)) && (await fs.pathExists(indexFilePath))) {
+      filePathToRead = indexFilePath;
+    } else if (await fs.pathExists(legacyFilePath)) {
+      // Fallback to legacy file
+      filePathToRead = legacyFilePath;
+    } else {
+      // Not found
+      return { success: true, data: { content: '', meta: {} as any } };
+    }
+
+    const content = await fs.readFile(filePathToRead, 'utf-8');
+    const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+    if (match) {
+      const metaRaw = match[1];
+      const body = match[2];
+
+      const meta: any = {};
+      metaRaw.split('\n').forEach(line => {
+        const [key, ...val] = line.split(':');
+        if (key && val) meta[key.trim()] = val.join(':').trim();
+      });
+
+      return { success: true, data: { content: body, meta: meta } };
+    } else {
+      return { success: true, data: { content, meta: {} as any } };
+    }
+
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle('diary:save', async (_, dateStr: string, content: string, meta: any, diaryRoot: string) => {
+  try {
+    if (!diaryRoot) return { success: false, error: 'Diary root path not provided' };
+
+    const year = dateStr.split('-')[0];
+    const dayDir = path.join(diaryRoot, year, dateStr);
+    const filePath = path.join(dayDir, 'index.md');
+
+    // Ensure directory exists
+    await fs.ensureDir(dayDir);
+
+    const metaStr = Object.entries(meta).map(([k, v]) => {
+      if (Array.isArray(v)) return `${k}: [${v.join(', ')}]`;
+      return `${k}: ${v}`;
+    }).join('\n');
+
+    const fullContent = `---\n${metaStr}\n---\n\n${content}`;
+    await fs.writeFile(filePath, fullContent, 'utf-8');
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle('diary:list', async (_, year: number, month: number, diaryRoot: string) => {
+  try {
+    if (!diaryRoot) return { success: false, error: 'Diary root path not provided' };
+
+    const dirPath = path.join(diaryRoot, String(year));
+
+    if (!await fs.pathExists(dirPath)) return { success: true, data: [] };
+
+    const files = await fs.readdir(dirPath);
+    const monthStr = String(month).padStart(2, '0');
+    const prefix = `${year}-${monthStr}`;
+
+    // Set to store unique dates
+    const dates = new Set<string>();
+
+    for (const file of files) {
+      if (!file.startsWith(prefix)) continue;
+
+      if (file.endsWith('.md') && file.length === 13) { // YYYY-MM-DD.md
+        dates.add(file.replace('.md', ''));
+      } else {
+        // Check if it's a directory matching YYYY-MM-DD
+        // Simple length check: YYYY-MM-DD is 10 chars
+        if (file.length === 10) {
+          const fullPath = path.join(dirPath, file);
+          const stat = await fs.stat(fullPath);
+          if (stat.isDirectory()) {
+            dates.add(file);
+          }
+        }
+      }
+    }
+
+    return { success: true, data: Array.from(dates) };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+// Open Item in Default App
+ipcMain.handle('app:openPath', async (event, path) => {
+  const result = await shell.openPath(path);
+  if (result) {
+    return { success: false, error: result };
+  }
+  return { success: true };
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

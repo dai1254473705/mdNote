@@ -23,11 +23,11 @@ export class UIStore {
       message: '',
       details: '',
     };
-  
+
   // Feature Page Refactor: Active page state
-  activePage: 'editor' | 'schedule' | 'password' | 'trash' = 'editor';
- 
-  setActivePage(page: 'editor' | 'schedule' | 'password' | 'trash') {
+  activePage: 'editor' | 'schedule' | 'password' | 'trash' | 'todo' | 'diary' = 'editor';
+
+  setActivePage(page: 'editor' | 'schedule' | 'password' | 'trash' | 'todo' | 'diary') {
     this.activePage = page;
   }
 

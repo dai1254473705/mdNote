@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // System
   showItemInFolder: (path) => ipcRenderer.invoke('system:showItemInFolder', path),
+  openPath: (path) => ipcRenderer.invoke('app:openPath', path),
   getLogPath: () => ipcRenderer.invoke('system:getLogPath'),
   setLogPath: (newPath) => ipcRenderer.invoke('system:setLogPath', newPath),
   openLogDirectory: () => ipcRenderer.invoke('system:openLogDirectory'),
@@ -86,9 +87,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
   encryptPassword: (password, masterPassword, salt) => ipcRenderer.invoke('password:encrypt', password, masterPassword, salt),
   decryptPassword: (encryptedPassword, masterPassword, salt) => ipcRenderer.invoke('password:decrypt', encryptedPassword, masterPassword, salt),
 
+  // Todo List
+  getTodoDataPath: () => ipcRenderer.invoke('todo:getDataPath'),
+  loadTodoData: () => ipcRenderer.invoke('todo:loadData'),
+  saveTodoData: (data) => ipcRenderer.invoke('todo:saveData', data),
+
+  // Diary
+  diaryRead: (date, rootPath) => ipcRenderer.invoke('diary:read', date, rootPath),
+  diarySave: (date, content, meta, rootPath) => ipcRenderer.invoke('diary:save', date, content, meta, rootPath),
+  diaryList: (year, month, rootPath) => ipcRenderer.invoke('diary:list', year, month, rootPath),
+
   // Window Controls
   maximizeWindow: () => ipcRenderer.send('window:maximize'),
   minimizeWindow: () => ipcRenderer.send('window:minimize'),
   closeWindow: () => ipcRenderer.send('window:close'),
+
+  // App Events
+  onOpenFile: (callback) => {
+    const subscription = (_event, path) => callback(path);
+    ipcRenderer.on('app:open-file', subscription);
+    // Return unsubscribe function
+    return () => ipcRenderer.removeListener('app:open-file', subscription);
+  },
 });
 

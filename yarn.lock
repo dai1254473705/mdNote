@@ -1030,6 +1030,27 @@
     aria-hidden "^1.2.4"
     react-remove-scroll "^2.6.3"
 
+"@radix-ui/react-popover@^1.1.15":
+  version "1.1.15"
+  resolved "https://npmmirror.rd.chanjet.com/@radix-ui/react-popover/-/react-popover-1.1.15.tgz"
+  integrity sha512-kr0X2+6Yy/vJzLYJUPCZEc8SfQcf+1COFoAqauJm74umQhta9M7lNJHP7QQS3vkvcGLQUbWpMzwrXYwrYztHKA==
+  dependencies:
+    "@radix-ui/primitive" "1.1.3"
+    "@radix-ui/react-compose-refs" "1.1.2"
+    "@radix-ui/react-context" "1.1.2"
+    "@radix-ui/react-dismissable-layer" "1.1.11"
+    "@radix-ui/react-focus-guards" "1.1.3"
+    "@radix-ui/react-focus-scope" "1.1.7"
+    "@radix-ui/react-id" "1.1.1"
+    "@radix-ui/react-popper" "1.2.8"
+    "@radix-ui/react-portal" "1.1.9"
+    "@radix-ui/react-presence" "1.1.5"
+    "@radix-ui/react-primitive" "2.1.3"
+    "@radix-ui/react-slot" "1.2.3"
+    "@radix-ui/react-use-controllable-state" "1.2.2"
+    aria-hidden "^1.2.4"
+    react-remove-scroll "^2.6.3"
+
 "@radix-ui/react-popper@1.2.8":
   version "1.2.8"
   resolved "https://npmmirror.rd.chanjet.com/@radix-ui/react-popper/-/react-popper-1.2.8.tgz"
@@ -2818,6 +2839,11 @@ dagre-d3-es@7.0.13:
   dependencies:
     d3 "^7.9.0"
     lodash-es "^4.17.21"
+
+date-fns@^4.1.0:
+  version "4.1.0"
+  resolved "https://npmmirror.rd.chanjet.com/date-fns/-/date-fns-4.1.0.tgz"
+  integrity sha512-Ukq0owbQXxa/U3EGtsdVBkR1w7KOQ5gIBqdH2hkvknzZPYvBxb/aa6E8L7tmjFtkwZBu3UXBbjIgPo/Ez4xaNg==
 
 dayjs@^1.11.18:
   version "1.11.19"
